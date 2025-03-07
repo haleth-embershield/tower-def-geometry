@@ -468,6 +468,11 @@ export fn handleClick(x: f32, y: f32) void {
 fn updateGame(delta_time: f32) void {
     // Update wave timer
     if (game.enemies_to_spawn == 0 and game.enemy_count == 0) {
+        // If this is the first frame after all enemies are defeated, play level complete sound
+        if (game.wave_timer == 0 and game.wave > 0) {
+            playLevelCompleteSound();
+        }
+
         game.wave_timer += delta_time;
 
         // Log the timer for debugging
@@ -482,10 +487,7 @@ fn updateGame(delta_time: f32) void {
             game.wave_timer = 0;
             game.startWave();
 
-            // Play level complete sound when a wave is completed
-            if (game.wave > 1) {
-                playLevelCompleteSound();
-            }
+            // We no longer play level complete sound here since we play it when the level is finished
         }
     }
 
