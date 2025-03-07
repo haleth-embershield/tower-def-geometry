@@ -131,6 +131,7 @@ const Enemy = struct {
     value: u32,
     active: bool,
     path_index: usize,
+    hit_flash: f32, // Add a visual indicator when enemy is hit
 
     // Create a new enemy
     fn init(x: f32, y: f32, health: f32, speed: f32, value: u32) Enemy {
@@ -144,12 +145,19 @@ const Enemy = struct {
             .value = value,
             .active = true,
             .path_index = 0,
+            .hit_flash = 0,
         };
     }
 
     // Update enemy position along path
     fn update(self: *Enemy, delta_time: f32, path: []const PathPoint) bool {
         if (!self.active) return false;
+
+        // Update hit flash effect
+        if (self.hit_flash > 0) {
+            self.hit_flash -= delta_time;
+            if (self.hit_flash < 0) self.hit_flash = 0;
+        }
 
         if (self.path_index >= path.len) {
             return true; // Reached end of path
@@ -180,6 +188,13 @@ const Enemy = struct {
     // Take damage and check if dead
     fn takeDamage(self: *Enemy, amount: f32) bool {
         self.health -= amount;
+        self.hit_flash = 0.2; // Flash for 0.2 seconds when hit
+
+        // Log damage for debugging
+        var damage_buf: [64]u8 = undefined;
+        const damage_msg = std.fmt.bufPrint(&damage_buf, "Enemy took {d:.1} damage, health: {d:.1}/{d:.1}", .{ amount, self.health, self.max_health }) catch "Enemy took damage";
+        logString(damage_msg);
+
         return self.health <= 0;
     }
 };
@@ -265,7 +280,7 @@ const GameData = struct {
             .path = undefined,
             .path_length = 0,
             .selected_tower_type = TowerType.Line,
-            .money = 100,
+            .money = 1000,
             .lives = 20,
             .wave = 0,
             .wave_timer = 0,
@@ -553,6 +568,7 @@ fn updateGame(delta_time: f32) void {
                             const splash_distance = @sqrt(splash_dx * splash_dx + splash_dy * splash_dy);
 
                             if (splash_distance < splash_radius) {
+                                // Calculate damage based on distance from center (more damage at center)
                                 const splash_damage = damage * (1.0 - splash_distance / splash_radius);
                                 const splash_killed = splash_enemy.takeDamage(splash_damage);
 
@@ -575,9 +591,7 @@ fn updateGame(delta_time: f32) void {
                     } else if (game.projectiles[i].tower_type == TowerType.Square) {
                         // Square towers slow enemies
                         enemy.speed *= 0.8;
-                        const killed = enemy.takeDamage(damage);
-
-                        if (killed) {
+                        if (enemy.takeDamage(damage)) {
                             // Add money for kill
                             game.money += enemy.value;
 
@@ -592,9 +606,7 @@ fn updateGame(delta_time: f32) void {
                         }
                     } else {
                         // Normal damage for other tower types
-                        const killed = enemy.takeDamage(damage);
-
-                        if (killed) {
+                        if (enemy.takeDamage(damage)) {
                             // Add money for kill
                             game.money += enemy.value;
 
@@ -695,14 +707,38 @@ fn drawEnemies() void {
     for (game.enemies[0..game.enemy_count]) |enemy| {
         if (!enemy.active) continue;
 
-        // Draw enemy circle
-        drawCircle(enemy.x, enemy.y, enemy.radius, 255, 0, 0, true);
+        // Draw enemy circle - flash white when hit
+        if (enemy.hit_flash > 0) {
+            // Flash white when hit
+            const flash_intensity = @as(u8, @intFromFloat(255.0 * (enemy.hit_flash / 0.2)));
+            drawCircle(enemy.x, enemy.y, enemy.radius, 255, flash_intensity, flash_intensity, true);
+        } else {
+            // Normal red color
+            drawCircle(enemy.x, enemy.y, enemy.radius, 255, 0, 0, true);
+        }
 
-        // Draw health bar
-        const health_width = enemy.radius * 2.0 * (enemy.health / enemy.max_health);
+        // Draw health bar background (black)
+        const health_bar_width = enemy.radius * 2.0;
+        const health_bar_height = 5.0;
         const health_x = enemy.x - enemy.radius;
         const health_y = enemy.y - enemy.radius - 10;
-        drawRect(health_x, health_y, health_width, 5, 0, 255, 0);
+        drawRect(health_x, health_y, health_bar_width, health_bar_height, 0, 0, 0);
+
+        // Draw health bar (green to red gradient based on health percentage)
+        const health_percent = enemy.health / enemy.max_health;
+        const health_width = health_bar_width * health_percent;
+
+        // Color shifts from green to red as health decreases
+        const r: u8 = @intFromFloat(255.0 * (1.0 - health_percent));
+        const g: u8 = @intFromFloat(255.0 * health_percent);
+
+        drawRect(health_x, health_y, health_width, health_bar_height, r, g, 0);
+
+        // Draw health bar border
+        drawLine(health_x, health_y, health_x + health_bar_width, health_y, 1, 255, 255, 255);
+        drawLine(health_x + health_bar_width, health_y, health_x + health_bar_width, health_y + health_bar_height, 1, 255, 255, 255);
+        drawLine(health_x + health_bar_width, health_y + health_bar_height, health_x, health_y + health_bar_height, 1, 255, 255, 255);
+        drawLine(health_x, health_y + health_bar_height, health_x, health_y, 1, 255, 255, 255);
     }
 }
 
