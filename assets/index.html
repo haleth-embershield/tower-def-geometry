@@ -44,7 +44,7 @@
             font-size: 0.9rem;
         }
         .log-container {
-            margin-top: 20px;
+            margin-top: 10px;
             border: 1px solid #0fe;
             padding: 10px;
             height: 150px;
@@ -53,6 +53,15 @@
             font-family: monospace;
             background-color: #000;
             color: #0fe;
+            transition: height 0.3s ease;
+        }
+        .log-container.hidden {
+            height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            border-width: 0;
+            margin-top: 0;
+            overflow: hidden;
         }
         .log-entry {
             margin: 2px 0;
@@ -115,6 +124,7 @@
         }
         .controls-info {
             margin-top: 15px;
+            margin-bottom: 15px;
             border: 1px solid #0fe;
             padding: 10px;
             border-radius: 4px;
@@ -133,6 +143,26 @@
         }
         .controls-info li {
             margin: 5px 0;
+        }
+        .log-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding: 5px 10px;
+            border: 1px solid #0fe;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .log-toggle:hover {
+            background-color: rgba(0, 255, 238, 0.1);
+        }
+        .log-toggle-icon {
+            transition: transform 0.3s ease;
+        }
+        .log-toggle.collapsed .log-toggle-icon {
+            transform: rotate(-90deg);
         }
     </style>
 </head>
@@ -161,10 +191,6 @@
             <p id="status">WASM module loading...</p>
         </div>
         
-        <div class="log-container" id="log-container">
-            <div class="log-entry">Console output will appear here...</div>
-        </div>
-        
         <div class="controls-info">
             <h3>Keyboard Controls</h3>
             <ul>
@@ -172,6 +198,15 @@
                 <li>ESC: Deselect tower</li>
                 <li>Space: Pause/Resume</li>
             </ul>
+        </div>
+        
+        <div class="log-toggle" id="log-toggle">
+            <span>Console Output</span>
+            <span class="log-toggle-icon">▼</span>
+        </div>
+        
+        <div class="log-container" id="log-container">
+            <div class="log-entry">Console output will appear here...</div>
         </div>
     </div>
 
@@ -266,11 +301,36 @@
                 drawTowerPreview: (x, y, can_place) => {
                     if (x < 0 || y < 0) return;
                     
+                    // Get the range of the currently selected tower
+                    let range = 0;
+                    if (zigModule && typeof zigModule.getTowerRange === 'function') {
+                        range = zigModule.getTowerRange();
+                    } else {
+                        // Default ranges if function not available
+                        const selectedTower = document.querySelector('.tower-button.active');
+                        if (selectedTower) {
+                            if (selectedTower.id === 'tower-line') range = 150;
+                            else if (selectedTower.id === 'tower-triangle') range = 100;
+                            else if (selectedTower.id === 'tower-square') range = 120;
+                            else if (selectedTower.id === 'tower-pentagon') range = 200;
+                        }
+                    }
+                    
+                    // Draw tower placement indicator
                     ctx.beginPath();
                     ctx.arc(x, y, 20, 0, Math.PI * 2);
                     ctx.strokeStyle = can_place ? 'rgba(0, 255, 238, 0.5)' : 'rgba(255, 0, 0, 0.5)';
                     ctx.lineWidth = 2;
                     ctx.stroke();
+                    
+                    // Draw tower range indicator if placement is valid
+                    if (can_place && range > 0) {
+                        ctx.beginPath();
+                        ctx.arc(x, y, range, 0, Math.PI * 2);
+                        ctx.strokeStyle = 'rgba(0, 255, 238, 0.2)';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
                     
                     if (!can_place) {
                         // Draw X
@@ -500,6 +560,14 @@
         // Initialize the application
         window.addEventListener('load', () => {
             initWasm();
+        });
+        
+        // Add log toggle functionality
+        const logToggle = document.getElementById('log-toggle');
+        
+        logToggle.addEventListener('click', () => {
+            logContainer.classList.toggle('hidden');
+            logToggle.classList.toggle('collapsed');
         });
     </script>
 </body>

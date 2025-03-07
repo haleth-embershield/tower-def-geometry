@@ -215,6 +215,8 @@ const Projectile = struct {
     damage: f32,
     active: bool,
     tower_type: TowerType,
+    prev_x: f32, // Track previous position for better collision detection
+    prev_y: f32,
 
     fn init(x: f32, y: f32, target_x: f32, target_y: f32, damage: f32, tower_type: TowerType) Projectile {
         return Projectile{
@@ -226,11 +228,17 @@ const Projectile = struct {
             .damage = damage,
             .active = true,
             .tower_type = tower_type,
+            .prev_x = x,
+            .prev_y = y,
         };
     }
 
     fn update(self: *Projectile, delta_time: f32) bool {
         if (!self.active) return false;
+
+        // Store previous position
+        self.prev_x = self.x;
+        self.prev_y = self.y;
 
         const dx = self.target_x - self.x;
         const dy = self.target_y - self.y;
@@ -532,105 +540,132 @@ fn updateGame(delta_time: f32) void {
     i = 0;
     while (i < game.projectile_count) {
         const hit = game.projectiles[i].update(delta_time);
+        var hit_enemy = false;
 
-        if (hit) {
-            // Check for collision with enemies
-            var j: usize = 0;
-            while (j < game.enemy_count) {
-                const enemy = &game.enemies[j];
-                if (!enemy.active) {
-                    j += 1;
-                    continue;
-                }
-
-                const dx = enemy.x - game.projectiles[i].target_x;
-                const dy = enemy.y - game.projectiles[i].target_y;
-                const distance = @sqrt(dx * dx + dy * dy);
-
-                if (distance < enemy.radius) {
-                    // Apply damage based on tower type
-                    const damage = game.projectiles[i].damage;
-
-                    // Triangle towers do area damage
-                    if (game.projectiles[i].tower_type == TowerType.Triangle) {
-                        // Apply area damage to all enemies within range
-                        var k: usize = 0;
-                        const splash_radius: f32 = 50.0;
-                        while (k < game.enemy_count) {
-                            const splash_enemy = &game.enemies[k];
-                            if (!splash_enemy.active) {
-                                k += 1;
-                                continue;
-                            }
-
-                            const splash_dx = splash_enemy.x - game.projectiles[i].target_x;
-                            const splash_dy = splash_enemy.y - game.projectiles[i].target_y;
-                            const splash_distance = @sqrt(splash_dx * splash_dx + splash_dy * splash_dy);
-
-                            if (splash_distance < splash_radius) {
-                                // Calculate damage based on distance from center (more damage at center)
-                                const splash_damage = damage * (1.0 - splash_distance / splash_radius);
-                                const splash_killed = splash_enemy.takeDamage(splash_damage);
-
-                                if (splash_killed) {
-                                    // Add money for kill
-                                    game.money += splash_enemy.value;
-
-                                    // Remove enemy
-                                    game.enemies[k] = game.enemies[game.enemy_count - 1];
-                                    game.enemy_count -= 1;
-
-                                    // Adjust index if we're not at the end
-                                    if (k < game.enemy_count) {
-                                        continue;
-                                    }
-                                }
-                            }
-                            k += 1;
-                        }
-                    } else if (game.projectiles[i].tower_type == TowerType.Square) {
-                        // Square towers slow enemies
-                        enemy.speed *= 0.8;
-                        if (enemy.takeDamage(damage)) {
-                            // Add money for kill
-                            game.money += enemy.value;
-
-                            // Remove enemy
-                            game.enemies[j] = game.enemies[game.enemy_count - 1];
-                            game.enemy_count -= 1;
-
-                            // Adjust index if we're not at the end
-                            if (j < game.enemy_count) {
-                                continue;
-                            }
-                        }
-                    } else {
-                        // Normal damage for other tower types
-                        if (enemy.takeDamage(damage)) {
-                            // Add money for kill
-                            game.money += enemy.value;
-
-                            // Remove enemy
-                            game.enemies[j] = game.enemies[game.enemy_count - 1];
-                            game.enemy_count -= 1;
-
-                            // Adjust index if we're not at the end
-                            if (j < game.enemy_count) {
-                                continue;
-                            }
-                        }
-                    }
-
-                    break;
-                }
+        // Check for collision with enemies regardless of whether the projectile reached its target
+        var j: usize = 0;
+        while (j < game.enemy_count) {
+            const enemy = &game.enemies[j];
+            if (!enemy.active) {
                 j += 1;
+                continue;
             }
 
-            // Remove projectile
+            // Check if projectile is close to enemy
+            const dx = enemy.x - game.projectiles[i].x;
+            const dy = enemy.y - game.projectiles[i].y;
+            const distance = @sqrt(dx * dx + dy * dy);
+
+            // Also check if projectile crossed over the enemy between frames
+            const prev_dx = enemy.x - game.projectiles[i].prev_x;
+            const prev_dy = enemy.y - game.projectiles[i].prev_y;
+            const prev_distance = @sqrt(prev_dx * prev_dx + prev_dy * prev_dy);
+
+            // If projectile is within enemy radius or crossed over enemy between frames
+            if (distance < enemy.radius or
+                (distance < enemy.radius * 2 and prev_distance < enemy.radius * 2 and
+                distance + prev_distance < @sqrt((game.projectiles[i].x - game.projectiles[i].prev_x) * (game.projectiles[i].x - game.projectiles[i].prev_x) +
+                (game.projectiles[i].y - game.projectiles[i].prev_y) * (game.projectiles[i].y - game.projectiles[i].prev_y)) * 1.5))
+            {
+
+                // Apply damage based on tower type
+                const damage = game.projectiles[i].damage;
+
+                // Log hit for debugging
+                var hit_buf: [64]u8 = undefined;
+                const hit_msg = std.fmt.bufPrint(&hit_buf, "Projectile hit enemy at ({d:.1}, {d:.1}), distance: {d:.1}", .{ enemy.x, enemy.y, distance }) catch "Projectile hit enemy";
+                logString(hit_msg);
+
+                // Triangle towers do area damage
+                if (game.projectiles[i].tower_type == TowerType.Triangle) {
+                    // Apply area damage to all enemies within range
+                    var k: usize = 0;
+                    const splash_radius: f32 = 50.0;
+                    while (k < game.enemy_count) {
+                        const splash_enemy = &game.enemies[k];
+                        if (!splash_enemy.active) {
+                            k += 1;
+                            continue;
+                        }
+
+                        const splash_dx = splash_enemy.x - game.projectiles[i].target_x;
+                        const splash_dy = splash_enemy.y - game.projectiles[i].target_y;
+                        const splash_distance = @sqrt(splash_dx * splash_dx + splash_dy * splash_dy);
+
+                        if (splash_distance < splash_radius) {
+                            // Calculate damage based on distance from center (more damage at center)
+                            const splash_damage = damage * (1.0 - splash_distance / splash_radius);
+                            const splash_killed = splash_enemy.takeDamage(splash_damage);
+
+                            if (splash_killed) {
+                                // Add money for kill
+                                game.money += splash_enemy.value;
+
+                                // Remove enemy
+                                game.enemies[k] = game.enemies[game.enemy_count - 1];
+                                game.enemy_count -= 1;
+
+                                // Adjust index if we're not at the end
+                                if (k < game.enemy_count) {
+                                    continue;
+                                }
+                            }
+                        }
+                        k += 1;
+                    }
+                } else if (game.projectiles[i].tower_type == TowerType.Square) {
+                    // Square towers slow enemies
+                    enemy.speed *= 0.8;
+                    if (enemy.takeDamage(damage)) {
+                        // Add money for kill
+                        game.money += enemy.value;
+
+                        // Remove enemy
+                        game.enemies[j] = game.enemies[game.enemy_count - 1];
+                        game.enemy_count -= 1;
+
+                        // Adjust index if we're not at the end
+                        if (j < game.enemy_count) {
+                            continue;
+                        }
+                    }
+                } else {
+                    // Normal damage for other tower types
+                    if (enemy.takeDamage(damage)) {
+                        // Add money for kill
+                        game.money += enemy.value;
+
+                        // Remove enemy
+                        game.enemies[j] = game.enemies[game.enemy_count - 1];
+                        game.enemy_count -= 1;
+
+                        // Adjust index if we're not at the end
+                        if (j < game.enemy_count) {
+                            continue;
+                        }
+                    }
+                }
+
+                hit_enemy = true;
+                break;
+            }
+            j += 1;
+        }
+
+        // Remove projectile if it hit its target or hit an enemy
+        if (hit or hit_enemy) {
             game.projectiles[i] = game.projectiles[game.projectile_count - 1];
             game.projectile_count -= 1;
         } else {
-            i += 1;
+            // Also remove projectile if it goes off screen
+            if (game.projectiles[i].x < -20 or game.projectiles[i].x > canvas_width + 20 or
+                game.projectiles[i].y < -20 or game.projectiles[i].y > canvas_height + 20)
+            {
+                game.projectiles[i] = game.projectiles[game.projectile_count - 1];
+                game.projectile_count -= 1;
+            } else {
+                i += 1;
+            }
         }
     }
 }
@@ -861,4 +896,12 @@ export fn selectTowerType(tower_type: u32) void {
     var msg_buf: [64]u8 = undefined;
     const msg = std.fmt.bufPrint(&msg_buf, "Selected tower: {s}", .{@tagName(game.selected_tower_type)}) catch "Selected tower";
     logString(msg);
+}
+
+// Get the range of the currently selected tower
+export fn getTowerRange() f32 {
+    if (game.selected_tower_type == TowerType.None) return 0;
+
+    const tower = Tower.init(0, 0, game.selected_tower_type);
+    return tower.range;
 }
