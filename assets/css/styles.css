@@ -37,18 +37,19 @@ h1 {
     width: 100%;
     max-width: 800px;
     margin: 0 auto;
+    aspect-ratio: 4 / 3; /* Maintain 800x600 aspect ratio */
+    overflow: hidden;
 }
 
 canvas {
     border: 1px solid #0fe;
     background-color: #000;
-    margin: 10px auto;
+    margin: 0 auto;
     display: block;
     box-shadow: 0 0 15px rgba(15, 238, 210, 0.3);
     width: 100%;
-    height: auto;
-    max-width: 800px;
-    max-height: 600px;
+    height: 100%;
+    object-fit: contain;
 }
 
 /* Status and log styles */

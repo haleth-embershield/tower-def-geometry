@@ -56,9 +56,21 @@ export class CanvasManager {
     handleResize() {
         const containerWidth = this.canvas.parentElement.clientWidth;
         
+        // Calculate the display size of the canvas
+        const displayWidth = containerWidth;
+        const displayHeight = (this.originalHeight / this.originalWidth) * displayWidth;
+        
+        // Set the canvas display size (CSS)
+        this.canvas.style.width = `${displayWidth}px`;
+        this.canvas.style.height = `${displayHeight}px`;
+        
+        // Set the canvas internal resolution (actual size)
+        this.canvas.width = this.originalWidth;
+        this.canvas.height = this.originalHeight;
+        
         // Calculate the new scale factors
-        this.scaleX = containerWidth / this.originalWidth;
-        this.scaleY = this.scaleX; // Keep aspect ratio
+        this.scaleX = this.canvas.width / this.originalWidth;
+        this.scaleY = this.canvas.height / this.originalHeight;
         
         // Update scale in WASM if needed
         if (window.gameApp && window.gameApp.wasmLoader.zigModule) {
@@ -71,9 +83,14 @@ export class CanvasManager {
     
     // Convert screen coordinates to game world coordinates
     screenToWorld(screenX, screenY) {
+        // Get the canvas's current display dimensions
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        
         return {
-            x: screenX / this.scaleX,
-            y: screenY / this.scaleY
+            x: screenX * scaleX,
+            y: screenY * scaleY
         };
     }
     
@@ -85,19 +102,19 @@ export class CanvasManager {
     // Draw a rectangle
     drawRect(x, y, width, height, r, g, b) {
         this.ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        this.ctx.fillRect(x * this.scaleX, y * this.scaleY, width * this.scaleX, height * this.scaleY);
+        this.ctx.fillRect(x, y, width, height);
     }
     
     // Draw a circle
     drawCircle(x, y, radius, r, g, b, fill) {
         this.ctx.beginPath();
-        this.ctx.arc(x * this.scaleX, y * this.scaleY, radius * this.scaleX, 0, Math.PI * 2);
+        this.ctx.arc(x, y, radius, 0, Math.PI * 2);
         if (fill) {
             this.ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
             this.ctx.fill();
         } else {
             this.ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
-            this.ctx.lineWidth = 2 * this.scaleX;
+            this.ctx.lineWidth = 2;
             this.ctx.stroke();
         }
     }
@@ -105,68 +122,64 @@ export class CanvasManager {
     // Draw a line
     drawLine(x1, y1, x2, y2, thickness, r, g, b) {
         this.ctx.beginPath();
-        this.ctx.moveTo(x1 * this.scaleX, y1 * this.scaleY);
-        this.ctx.lineTo(x2 * this.scaleX, y2 * this.scaleY);
+        this.ctx.moveTo(x1, y1);
+        this.ctx.lineTo(x2, y2);
         this.ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
-        this.ctx.lineWidth = thickness * this.scaleX;
+        this.ctx.lineWidth = thickness;
         this.ctx.stroke();
     }
     
     // Draw a triangle
     drawTriangle(x1, y1, x2, y2, x3, y3, r, g, b, fill) {
         this.ctx.beginPath();
-        this.ctx.moveTo(x1 * this.scaleX, y1 * this.scaleY);
-        this.ctx.lineTo(x2 * this.scaleX, y2 * this.scaleY);
-        this.ctx.lineTo(x3 * this.scaleX, y3 * this.scaleY);
+        this.ctx.moveTo(x1, y1);
+        this.ctx.lineTo(x2, y2);
+        this.ctx.lineTo(x3, y3);
         this.ctx.closePath();
         if (fill) {
             this.ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
             this.ctx.fill();
         } else {
             this.ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
-            this.ctx.lineWidth = 2 * this.scaleX;
+            this.ctx.lineWidth = 2;
             this.ctx.stroke();
         }
     }
     
     // Draw text
     drawText(x, y, text, size, r, g, b) {
-        this.ctx.font = `${size * this.scaleX}px sans-serif`;
+        this.ctx.font = `${size}px sans-serif`;
         this.ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        this.ctx.fillText(text, x * this.scaleX, y * this.scaleY);
+        this.ctx.fillText(text, x, y);
     }
     
     // Draw tower placement preview
     drawTowerPreview(x, y, canPlace, range) {
         if (x < 0 || y < 0) return;
         
-        const scaledX = x * this.scaleX;
-        const scaledY = y * this.scaleY;
-        const scaledRange = range * this.scaleX;
-        
         // Draw tower placement indicator
         this.ctx.beginPath();
-        this.ctx.arc(scaledX, scaledY, 20 * this.scaleX, 0, Math.PI * 2);
+        this.ctx.arc(x, y, 20, 0, Math.PI * 2);
         this.ctx.strokeStyle = canPlace ? 'rgba(0, 255, 238, 0.5)' : 'rgba(255, 0, 0, 0.5)';
-        this.ctx.lineWidth = 2 * this.scaleX;
+        this.ctx.lineWidth = 2;
         this.ctx.stroke();
         
         // Draw tower range indicator if placement is valid
         if (canPlace && range > 0) {
             this.ctx.beginPath();
-            this.ctx.arc(scaledX, scaledY, scaledRange, 0, Math.PI * 2);
+            this.ctx.arc(x, y, range, 0, Math.PI * 2);
             this.ctx.strokeStyle = 'rgba(0, 255, 238, 0.2)';
-            this.ctx.lineWidth = 1 * this.scaleX;
+            this.ctx.lineWidth = 1;
             this.ctx.stroke();
         }
         
         if (!canPlace) {
             // Draw X
             this.ctx.beginPath();
-            this.ctx.moveTo(scaledX - 15 * this.scaleX, scaledY - 15 * this.scaleY);
-            this.ctx.lineTo(scaledX + 15 * this.scaleX, scaledY + 15 * this.scaleY);
-            this.ctx.moveTo(scaledX + 15 * this.scaleX, scaledY - 15 * this.scaleY);
-            this.ctx.lineTo(scaledX - 15 * this.scaleX, scaledY + 15 * this.scaleY);
+            this.ctx.moveTo(x - 15, y - 15);
+            this.ctx.lineTo(x + 15, y + 15);
+            this.ctx.moveTo(x + 15, y - 15);
+            this.ctx.lineTo(x - 15, y + 15);
             this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
             this.ctx.stroke();
         }
