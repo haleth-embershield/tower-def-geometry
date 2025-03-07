@@ -729,11 +729,8 @@ fn drawTowers() void {
             .None => {},
         }
 
-        // Draw range indicator if tower is cooling down
-        if (tower.cooldown > 0) {
-            const alpha = @as(u8, @intFromFloat(128.0 * (1.0 - tower.cooldown / tower.cooldown_max)));
-            drawCircle(tower.x, tower.y, tower.range, alpha, alpha, alpha, false);
-        }
+        // We no longer show range indicators when towers are shooting
+        // This makes the gameplay less cluttered
     }
 }
 
