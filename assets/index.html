@@ -225,27 +225,42 @@
             pentagon: document.getElementById('tower-pentagon')
         };
         
-        // Audio elements
-        const audioElements = {
-            enemyHit: new Audio('audio/enemy-hit.ogg'),
-            levelComplete: new Audio('audio/level-complete.ogg'),
-            levelFail: new Audio('audio/level-fail.ogg'),
-            towerShoot: new Audio('audio/tower-shoot.ogg'),
-            enemyExplosion: new Audio('audio/enemy-explosion.ogg')
-        };
+        // Audio system
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const audioBuffers = {};
+        const audioFiles = [
+            { name: 'enemyHit', path: 'audio/enemy-hit.ogg' },
+            { name: 'levelComplete', path: 'audio/level-complete.ogg' },
+            { name: 'levelFail', path: 'audio/level-fail.ogg' },
+            { name: 'towerShoot', path: 'audio/tower-shoot.ogg' },
+            { name: 'enemyExplosion', path: 'audio/enemy-explosion.ogg' }
+        ];
         
-        // Set volume for all audio elements
-        Object.values(audioElements).forEach(audio => {
-            audio.volume = 0.5; // Set to 50% volume
-        });
+        // Preload all audio files
+        async function preloadAudio() {
+            try {
+                const loadPromises = audioFiles.map(async (file) => {
+                    const response = await fetch(file.path);
+                    const arrayBuffer = await response.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    audioBuffers[file.name] = audioBuffer;
+                    console.log(`Loaded audio: ${file.name}`);
+                });
+                
+                await Promise.all(loadPromises);
+                console.log('All audio files loaded successfully');
+            } catch (error) {
+                console.error('Error loading audio files:', error);
+            }
+        }
         
-        // Function to play sound
+        // Function to play sound from buffer
         function playSound(soundName) {
-            if (audioElements[soundName]) {
-                // Clone the audio to allow overlapping sounds
-                const sound = audioElements[soundName].cloneNode();
-                sound.volume = audioElements[soundName].volume;
-                sound.play().catch(e => console.log("Audio play error:", e));
+            if (audioBuffers[soundName]) {
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffers[soundName];
+                source.connect(audioContext.destination);
+                source.start(0);
             }
         }
         
@@ -500,9 +515,12 @@
         // Initialize WebAssembly module
         async function initWasm() {
             try {
-                statusElement.textContent = "Loading WASM module...";
+                statusElement.textContent = "Loading audio and WASM module...";
                 
-                // Load the WASM file
+                // First preload all audio files
+                await preloadAudio();
+                
+                // Then load the WASM file
                 const wasmUrl = 'towerd.wasm';
                 
                 const response = await fetch(wasmUrl);
@@ -583,7 +601,7 @@
                 
             } catch (error) {
                 statusElement.textContent = `Error: ${error.message}`;
-                console.error("WASM initialization error:", error);
+                console.error("Initialization error:", error);
                 
                 // Add retry button
                 const retryButton = document.createElement('button');
