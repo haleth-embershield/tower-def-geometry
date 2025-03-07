@@ -18,8 +18,8 @@ pub fn build(b: *std.Build) void {
 
     // Create an executable that compiles to WebAssembly
     const exe = b.addExecutable(.{
-        .name = "example",
-        .root_source_file = b.path("src/example.zig"),
+        .name = "towerd",
+        .root_source_file = b.path("src/main.zig"),
         .target = b.resolveTargetQuery(wasm_target),
         .optimize = optimize,
     });
@@ -46,7 +46,7 @@ pub fn build(b: *std.Build) void {
     make_www.step.dependOn(b.getInstallStep());
 
     // Create a step to copy the WASM file to the root www directory
-    const copy_wasm = b.addInstallFile(exe.getEmittedBin(), "../www/example.wasm");
+    const copy_wasm = b.addInstallFile(exe.getEmittedBin(), "../www/towerd.wasm");
     copy_wasm.step.dependOn(b.getInstallStep());
     copy_wasm.step.dependOn(&make_www.step);
 
