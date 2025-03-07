@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Neon Geometry Tower Defense</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -10,7 +12,9 @@
     <div class="container">
         <h1>Neon Geometry Tower Defense</h1>
         
-        <canvas id="canvas" width="800" height="600"></canvas>
+        <div class="canvas-container">
+            <canvas id="canvas" width="800" height="600"></canvas>
+        </div>
         
         <div class="controls">
             <button id="start-button">Start Game</button>
@@ -20,10 +24,10 @@
         <div class="tower-selection">
             <h3>Select Tower</h3>
             <div class="tower-buttons">
-                <button id="tower-line" class="tower-button active">Line Tower ($50)</button>
-                <button id="tower-triangle" class="tower-button">Triangle Tower ($100)</button>
-                <button id="tower-square" class="tower-button">Square Tower ($75)</button>
-                <button id="tower-pentagon" class="tower-button">Pentagon Tower ($150)</button>
+                <button id="tower-line" class="tower-button active">Line ($50)</button>
+                <button id="tower-triangle" class="tower-button">Triangle ($100)</button>
+                <button id="tower-square" class="tower-button">Square ($75)</button>
+                <button id="tower-pentagon" class="tower-button">Pentagon ($150)</button>
             </div>
         </div>
         
@@ -32,11 +36,10 @@
         </div>
         
         <div class="controls-info">
-            <h3>Keyboard Controls</h3>
+            <h3>Controls</h3>
             <ul>
-                <li>1-4: Select towers</li>
-                <li>ESC: Deselect tower</li>
-                <li>Space: Pause/Resume</li>
+                <li>Desktop: 1-4 keys to select towers; ESC to deselect; Space to pause</li>
+                <li>Mobile: Tap tower buttons to select; Tap canvas to place towers</li>
             </ul>
         </div>
         

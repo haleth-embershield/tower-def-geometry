@@ -4,7 +4,7 @@
 body {
     font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     margin: 0;
-    padding: 20px;
+    padding: 10px;
     background-color: #111;
     color: #0fe;
     display: flex;
@@ -16,11 +16,11 @@ body {
 
 .container {
     background-color: #000;
-    padding: 20px;
+    padding: 15px;
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(15, 238, 210, 0.5);
-    max-width: 800px;
-    width: 100%;
+    max-width: 95%;
+    width: 800px;
     text-align: center;
 }
 
@@ -28,15 +28,27 @@ h1 {
     color: #0fe;
     margin-top: 0;
     text-shadow: 0 0 10px #0fe;
+    font-size: calc(1.5rem + 1vw);
 }
 
 /* Canvas styles */
+.canvas-container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
 canvas {
     border: 1px solid #0fe;
     background-color: #000;
-    margin: 20px auto;
+    margin: 10px auto;
     display: block;
     box-shadow: 0 0 15px rgba(15, 238, 210, 0.3);
+    width: 100%;
+    height: auto;
+    max-width: 800px;
+    max-height: 600px;
 }
 
 /* Status and log styles */
@@ -127,6 +139,8 @@ button:hover {
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.3s ease;
+    flex: 1 1 auto;
+    min-width: 120px;
 }
 
 .tower-button:hover {
@@ -189,4 +203,37 @@ button:hover {
 
 .log-toggle.collapsed .log-toggle-icon {
     transform: rotate(-90deg);
+}
+
+/* Mobile optimizations */
+@media (max-width: 600px) {
+    body {
+        padding: 5px;
+    }
+    
+    .container {
+        padding: 10px;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    .tower-buttons {
+        gap: 5px;
+    }
+    
+    .tower-button {
+        padding: 5px;
+        font-size: 0.9rem;
+        min-width: auto;
+    }
+    
+    .controls-info {
+        font-size: 0.9rem;
+    }
+    
+    .log-container {
+        height: 100px;
+    }
 } 
