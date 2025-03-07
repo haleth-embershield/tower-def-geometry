@@ -14,6 +14,13 @@ extern "env" fn drawLine(x1: f32, y1: f32, x2: f32, y2: f32, thickness: f32, r: 
 extern "env" fn drawTriangle(x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32, r: u8, g: u8, b: u8, fill: bool) void;
 extern "env" fn drawText(x: f32, y: f32, text_ptr: [*]const u8, text_len: usize, size: f32, r: u8, g: u8, b: u8) void;
 
+// Audio functions
+extern "env" fn playEnemyHitSound() void;
+extern "env" fn playLevelCompleteSound() void;
+extern "env" fn playLevelFailSound() void;
+extern "env" fn playTowerShootSound() void;
+extern "env" fn playEnemyExplosionSound() void;
+
 // Game constants
 const GRID_SIZE: f32 = 40;
 const GRID_COLS: u32 = 20;
@@ -189,6 +196,9 @@ const Enemy = struct {
     fn takeDamage(self: *Enemy, amount: f32) bool {
         self.health -= amount;
         self.hit_flash = 0.2; // Flash for 0.2 seconds when hit
+
+        // Play enemy hit sound
+        playEnemyHitSound();
 
         // Log damage for debugging
         var damage_buf: [64]u8 = undefined;
@@ -471,6 +481,11 @@ fn updateGame(delta_time: f32) void {
             logString("Starting next wave!");
             game.wave_timer = 0;
             game.startWave();
+
+            // Play level complete sound when a wave is completed
+            if (game.wave > 1) {
+                playLevelCompleteSound();
+            }
         }
     }
 
@@ -509,6 +524,9 @@ fn updateGame(delta_time: f32) void {
                 // Create projectile
                 game.addProjectile(tower.x, tower.y, enemy.x, enemy.y, tower.damage, tower.type);
                 tower.resetCooldown();
+
+                // Play tower shoot sound
+                playTowerShootSound();
             }
         }
     }
@@ -530,6 +548,9 @@ fn updateGame(delta_time: f32) void {
             if (game.lives == 0) {
                 game.state = GameState.GameOver;
                 logString("Game Over!");
+
+                // Play level fail sound when game is over
+                playLevelFailSound();
             }
         } else {
             i += 1;
@@ -598,6 +619,9 @@ fn updateGame(delta_time: f32) void {
                             const splash_killed = splash_enemy.takeDamage(splash_damage);
 
                             if (splash_killed) {
+                                // Play explosion sound when enemy dies
+                                playEnemyExplosionSound();
+
                                 // Add money for kill
                                 game.money += splash_enemy.value;
 
@@ -617,6 +641,9 @@ fn updateGame(delta_time: f32) void {
                     // Square towers slow enemies
                     enemy.speed *= 0.8;
                     if (enemy.takeDamage(damage)) {
+                        // Play explosion sound when enemy dies
+                        playEnemyExplosionSound();
+
                         // Add money for kill
                         game.money += enemy.value;
 
@@ -632,6 +659,9 @@ fn updateGame(delta_time: f32) void {
                 } else {
                     // Normal damage for other tower types
                     if (enemy.takeDamage(damage)) {
+                        // Play explosion sound when enemy dies
+                        playEnemyExplosionSound();
+
                         // Add money for kill
                         game.money += enemy.value;
 

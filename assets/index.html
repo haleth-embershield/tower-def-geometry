@@ -225,6 +225,30 @@
             pentagon: document.getElementById('tower-pentagon')
         };
         
+        // Audio elements
+        const audioElements = {
+            enemyHit: new Audio('audio/enemy-hit.ogg'),
+            levelComplete: new Audio('audio/level-complete.ogg'),
+            levelFail: new Audio('audio/level-fail.ogg'),
+            towerShoot: new Audio('audio/tower-shoot.ogg'),
+            enemyExplosion: new Audio('audio/enemy-explosion.ogg')
+        };
+        
+        // Set volume for all audio elements
+        Object.values(audioElements).forEach(audio => {
+            audio.volume = 0.5; // Set to 50% volume
+        });
+        
+        // Function to play sound
+        function playSound(soundName) {
+            if (audioElements[soundName]) {
+                // Clone the audio to allow overlapping sounds
+                const sound = audioElements[soundName].cloneNode();
+                sound.volume = audioElements[soundName].volume;
+                sound.play().catch(e => console.log("Audio play error:", e));
+            }
+        }
+        
         // WASM module reference
         let zigModule = null;
         
@@ -342,6 +366,22 @@
                         ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
                         ctx.stroke();
                     }
+                },
+                // Audio functions
+                playEnemyHitSound: () => {
+                    playSound('enemyHit');
+                },
+                playLevelCompleteSound: () => {
+                    playSound('levelComplete');
+                },
+                playLevelFailSound: () => {
+                    playSound('levelFail');
+                },
+                playTowerShootSound: () => {
+                    playSound('towerShoot');
+                },
+                playEnemyExplosionSound: () => {
+                    playSound('enemyExplosion');
                 }
             }
         };
