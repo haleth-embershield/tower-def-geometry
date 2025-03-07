@@ -436,7 +436,16 @@ fn updateGame(delta_time: f32) void {
     // Update wave timer
     if (game.enemies_to_spawn == 0 and game.enemy_count == 0) {
         game.wave_timer += delta_time;
-        if (game.wave_timer > 5.0) {
+
+        // Log the timer for debugging
+        if (@mod(@floor(game.wave_timer * 10.0), 10.0) == 0) {
+            var timer_buf: [32]u8 = undefined;
+            const timer_msg = std.fmt.bufPrint(&timer_buf, "Wave timer: {d:.1}", .{game.wave_timer}) catch "Wave timer update";
+            logString(timer_msg);
+        }
+
+        if (game.wave_timer >= 5.0) {
+            logString("Starting next wave!");
             game.wave_timer = 0;
             game.startWave();
         }
@@ -511,27 +520,98 @@ fn updateGame(delta_time: f32) void {
 
         if (hit) {
             // Check for collision with enemies
-            for (game.enemies[0..game.enemy_count]) |*enemy| {
-                if (!enemy.active) continue;
+            var j: usize = 0;
+            while (j < game.enemy_count) {
+                const enemy = &game.enemies[j];
+                if (!enemy.active) {
+                    j += 1;
+                    continue;
+                }
 
                 const dx = enemy.x - game.projectiles[i].target_x;
                 const dy = enemy.y - game.projectiles[i].target_y;
                 const distance = @sqrt(dx * dx + dy * dy);
 
                 if (distance < enemy.radius) {
-                    const killed = enemy.takeDamage(game.projectiles[i].damage);
+                    // Apply damage based on tower type
+                    const damage = game.projectiles[i].damage;
 
-                    if (killed) {
-                        // Add money for kill
-                        game.money += enemy.value;
+                    // Triangle towers do area damage
+                    if (game.projectiles[i].tower_type == TowerType.Triangle) {
+                        // Apply area damage to all enemies within range
+                        var k: usize = 0;
+                        const splash_radius: f32 = 50.0;
+                        while (k < game.enemy_count) {
+                            const splash_enemy = &game.enemies[k];
+                            if (!splash_enemy.active) {
+                                k += 1;
+                                continue;
+                            }
 
-                        // Remove enemy
-                        game.enemies[i] = game.enemies[game.enemy_count - 1];
-                        game.enemy_count -= 1;
+                            const splash_dx = splash_enemy.x - game.projectiles[i].target_x;
+                            const splash_dy = splash_enemy.y - game.projectiles[i].target_y;
+                            const splash_distance = @sqrt(splash_dx * splash_dx + splash_dy * splash_dy);
+
+                            if (splash_distance < splash_radius) {
+                                const splash_damage = damage * (1.0 - splash_distance / splash_radius);
+                                const splash_killed = splash_enemy.takeDamage(splash_damage);
+
+                                if (splash_killed) {
+                                    // Add money for kill
+                                    game.money += splash_enemy.value;
+
+                                    // Remove enemy
+                                    game.enemies[k] = game.enemies[game.enemy_count - 1];
+                                    game.enemy_count -= 1;
+
+                                    // Adjust index if we're not at the end
+                                    if (k < game.enemy_count) {
+                                        continue;
+                                    }
+                                }
+                            }
+                            k += 1;
+                        }
+                    } else if (game.projectiles[i].tower_type == TowerType.Square) {
+                        // Square towers slow enemies
+                        enemy.speed *= 0.8;
+                        const killed = enemy.takeDamage(damage);
+
+                        if (killed) {
+                            // Add money for kill
+                            game.money += enemy.value;
+
+                            // Remove enemy
+                            game.enemies[j] = game.enemies[game.enemy_count - 1];
+                            game.enemy_count -= 1;
+
+                            // Adjust index if we're not at the end
+                            if (j < game.enemy_count) {
+                                continue;
+                            }
+                        }
+                    } else {
+                        // Normal damage for other tower types
+                        const killed = enemy.takeDamage(damage);
+
+                        if (killed) {
+                            // Add money for kill
+                            game.money += enemy.value;
+
+                            // Remove enemy
+                            game.enemies[j] = game.enemies[game.enemy_count - 1];
+                            game.enemy_count -= 1;
+
+                            // Adjust index if we're not at the end
+                            if (j < game.enemy_count) {
+                                continue;
+                            }
+                        }
                     }
 
                     break;
                 }
+                j += 1;
             }
 
             // Remove projectile
@@ -730,4 +810,19 @@ export fn canPlaceTower(x: f32, y: f32) bool {
     }
 
     return true;
+}
+
+// Select tower type
+export fn selectTowerType(tower_type: u32) void {
+    game.selected_tower_type = switch (tower_type) {
+        1 => TowerType.Line,
+        2 => TowerType.Triangle,
+        3 => TowerType.Square,
+        4 => TowerType.Pentagon,
+        else => TowerType.None,
+    };
+
+    var msg_buf: [64]u8 = undefined;
+    const msg = std.fmt.bufPrint(&msg_buf, "Selected tower: {s}", .{@tagName(game.selected_tower_type)}) catch "Selected tower";
+    logString(msg);
 }

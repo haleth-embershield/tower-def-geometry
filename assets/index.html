@@ -203,6 +203,120 @@
         let currentHoverY = -1;
         let canPlaceTower = false;
         
+        // Define imports globally so it can be accessed from all functions
+        const imports = {
+            env: {
+                consoleLog: (ptr, len) => {
+                    const buffer = new Uint8Array(zigModule.memory.buffer);
+                    const message = new TextDecoder().decode(buffer.subarray(ptr, ptr + len));
+                    console.log(message);
+                    addLogEntry(message);
+                },
+                clearCanvas: () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                },
+                drawRect: (x, y, width, height, r, g, b) => {
+                    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                    ctx.fillRect(x, y, width, height);
+                },
+                // New drawing functions for tower defense game
+                drawCircle: (x, y, radius, r, g, b, fill) => {
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius, 0, Math.PI * 2);
+                    if (fill) {
+                        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                        ctx.fill();
+                    } else {
+                        ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                },
+                drawLine: (x1, y1, x2, y2, thickness, r, g, b) => {
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+                    ctx.lineWidth = thickness;
+                    ctx.stroke();
+                },
+                drawTriangle: (x1, y1, x2, y2, x3, y3, r, g, b, fill) => {
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineTo(x3, y3);
+                    ctx.closePath();
+                    if (fill) {
+                        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                        ctx.fill();
+                    } else {
+                        ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                },
+                drawText: (x, y, text_ptr, text_len, size, r, g, b) => {
+                    const buffer = new Uint8Array(zigModule.memory.buffer);
+                    const text = new TextDecoder().decode(buffer.subarray(text_ptr, text_ptr + text_len));
+                    ctx.font = `${size}px sans-serif`;
+                    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                    ctx.fillText(text, x, y);
+                },
+                // Add preview drawing function
+                drawTowerPreview: (x, y, can_place) => {
+                    if (x < 0 || y < 0) return;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, 20, 0, Math.PI * 2);
+                    ctx.strokeStyle = can_place ? 'rgba(0, 255, 238, 0.5)' : 'rgba(255, 0, 0, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    if (!can_place) {
+                        // Draw X
+                        ctx.beginPath();
+                        ctx.moveTo(x - 15, y - 15);
+                        ctx.lineTo(x + 15, y + 15);
+                        ctx.moveTo(x + 15, y - 15);
+                        ctx.lineTo(x - 15, y + 15);
+                        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+                        ctx.stroke();
+                    }
+                }
+            }
+        };
+        
+        // Animation loop function - define it before using it
+        function animate(timestamp) {
+            // If paused, don't request next frame
+            if (isPaused) {
+                animationFrameId = null;
+                return;
+            }
+            
+            // Calculate delta time in seconds
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const deltaTime = (timestamp - lastTimestamp) / 1000;
+            lastTimestamp = timestamp;
+            
+            // Call WASM update function
+            zigModule.update(deltaTime);
+            
+            // Draw tower preview if hovering
+            if (currentHoverX >= 0 && currentHoverY >= 0) {
+                imports.env.drawTowerPreview(currentHoverX, currentHoverY, canPlaceTower);
+            }
+            
+            // Request next frame
+            animationFrameId = requestAnimationFrame(animate);
+        }
+        
+        // Start animation loop
+        function startAnimationLoop() {
+            // Start the animation loop
+            animationFrameId = requestAnimationFrame(animate);
+        }
+        
         // Add log entry to the log container
         function addLogEntry(message) {
             const entry = document.createElement('div');
@@ -219,185 +333,25 @@
             }
         }
         
-        // Add keyboard event listener
-        window.addEventListener('keydown', (event) => {
-            if (!zigModule) return;
+        // Function to select tower type
+        function selectTower(towerType) {
+            // Update UI
+            Object.values(towerButtons).forEach(btn => btn.classList.remove('active'));
             
-            switch(event.key) {
-                case '1': selectTower(1); break;
-                case '2': selectTower(2); break;
-                case '3': selectTower(3); break;
-                case '4': selectTower(4); break;
-                case 'Escape': selectTower(0); break; // Deselect tower
-                case ' ': // Space bar
-                    event.preventDefault();
-                    togglePause();
-                    break;
-            }
-        });
-        
-        // Add mouse move listener for tower placement preview
-        canvas.addEventListener('mousemove', (event) => {
-            if (!zigModule || isPaused) return;
-            
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-            
-            // Snap to grid
-            currentHoverX = Math.floor(x / 40) * 40 + 20;
-            currentHoverY = Math.floor(y / 40) * 40 + 20;
-            
-            // Check if we can place tower here
-            if (typeof zigModule.canPlaceTower === 'function') {
-                canPlaceTower = zigModule.canPlaceTower(currentHoverX, currentHoverY);
+            // Set active class based on selection
+            switch(towerType) {
+                case 1: towerButtons.line.classList.add('active'); break;
+                case 2: towerButtons.triangle.classList.add('active'); break;
+                case 3: towerButtons.square.classList.add('active'); break;
+                case 4: towerButtons.pentagon.classList.add('active'); break;
+                default: break; // For ESC key (deselect)
             }
             
-            // Request a frame update to show hover effect
-            if (!animationFrameId) {
-                requestAnimationFrame(animate);
-            }
-        });
-        
-        // Mouse leave handler
-        canvas.addEventListener('mouseleave', () => {
-            currentHoverX = -1;
-            currentHoverY = -1;
-        });
-        
-        // Initialize WebAssembly module
-        async function initWasm() {
-            try {
-                statusElement.textContent = "Loading WASM module...";
-                
-                // Load the WASM file
-                const wasmUrl = 'towerd.wasm';
-                
-                const response = await fetch(wasmUrl);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch WASM: ${response.statusText}`);
-                }
-                
-                const wasmBytes = await response.arrayBuffer();
-                
-                // Environment imports for our Zig code
-                const imports = {
-                    env: {
-                        consoleLog: (ptr, len) => {
-                            const buffer = new Uint8Array(zigModule.memory.buffer);
-                            const message = new TextDecoder().decode(buffer.subarray(ptr, ptr + len));
-                            console.log(message);
-                            addLogEntry(message);
-                        },
-                        clearCanvas: () => {
-                            ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        },
-                        drawRect: (x, y, width, height, r, g, b) => {
-                            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-                            ctx.fillRect(x, y, width, height);
-                        },
-                        // New drawing functions for tower defense game
-                        drawCircle: (x, y, radius, r, g, b, fill) => {
-                            ctx.beginPath();
-                            ctx.arc(x, y, radius, 0, Math.PI * 2);
-                            if (fill) {
-                                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-                                ctx.fill();
-                            } else {
-                                ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
-                                ctx.lineWidth = 2;
-                                ctx.stroke();
-                            }
-                        },
-                        drawLine: (x1, y1, x2, y2, thickness, r, g, b) => {
-                            ctx.beginPath();
-                            ctx.moveTo(x1, y1);
-                            ctx.lineTo(x2, y2);
-                            ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
-                            ctx.lineWidth = thickness;
-                            ctx.stroke();
-                        },
-                        drawTriangle: (x1, y1, x2, y2, x3, y3, r, g, b, fill) => {
-                            ctx.beginPath();
-                            ctx.moveTo(x1, y1);
-                            ctx.lineTo(x2, y2);
-                            ctx.lineTo(x3, y3);
-                            ctx.closePath();
-                            if (fill) {
-                                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-                                ctx.fill();
-                            } else {
-                                ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
-                                ctx.lineWidth = 2;
-                                ctx.stroke();
-                            }
-                        },
-                        drawText: (x, y, text_ptr, text_len, size, r, g, b) => {
-                            const buffer = new Uint8Array(zigModule.memory.buffer);
-                            const text = new TextDecoder().decode(buffer.subarray(text_ptr, text_ptr + text_len));
-                            ctx.font = `${size}px sans-serif`;
-                            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-                            ctx.fillText(text, x, y);
-                        },
-                        // Add preview drawing function
-                        drawTowerPreview: (x, y, can_place) => {
-                            if (x < 0 || y < 0) return;
-                            
-                            ctx.beginPath();
-                            ctx.arc(x, y, 20, 0, Math.PI * 2);
-                            ctx.strokeStyle = can_place ? 'rgba(0, 255, 238, 0.5)' : 'rgba(255, 0, 0, 0.5)';
-                            ctx.lineWidth = 2;
-                            ctx.stroke();
-                            
-                            if (!can_place) {
-                                // Draw X
-                                ctx.beginPath();
-                                ctx.moveTo(x - 15, y - 15);
-                                ctx.lineTo(x + 15, y + 15);
-                                ctx.moveTo(x + 15, y - 15);
-                                ctx.lineTo(x - 15, y + 15);
-                                ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-                                ctx.stroke();
-                            }
-                        }
-                    }
-                };
-                
-                // Instantiate the WebAssembly module
-                const { instance } = await WebAssembly.instantiate(wasmBytes, imports);
-                zigModule = instance.exports;
-                
-                // Initialize the WASM module with canvas dimensions
-                zigModule.init(canvas.width, canvas.height);
-                
-                // Update status
-                statusElement.textContent = "WASM module loaded successfully";
-                
-                // Add click event listener to canvas
-                canvas.addEventListener('click', handleCanvasClick);
-                
-                // Add button event listeners
-                startButton.addEventListener('click', startGame);
-                pauseButton.addEventListener('click', togglePause);
-                
-                // Add tower selection button listeners
-                towerButtons.line.addEventListener('click', () => selectTower(1)); // Line = 1
-                towerButtons.triangle.addEventListener('click', () => selectTower(2)); // Triangle = 2
-                towerButtons.square.addEventListener('click', () => selectTower(3)); // Square = 3
-                towerButtons.pentagon.addEventListener('click', () => selectTower(4)); // Pentagon = 4
-            } catch (error) {
-                statusElement.textContent = `Error: ${error.message}`;
-                console.error("WASM initialization error:", error);
-                
-                // Add retry button
-                const retryButton = document.createElement('button');
-                retryButton.textContent = 'Retry Loading';
-                retryButton.onclick = () => {
-                    statusElement.textContent = '';
-                    retryButton.remove();
-                    initWasm();
-                };
-                statusElement.appendChild(retryButton);
+            // Call WASM function to set selected tower type
+            if (zigModule && typeof zigModule.selectTowerType === 'function') {
+                zigModule.selectTowerType(towerType);
+            } else {
+                console.warn("selectTowerType function not available in WASM module");
             }
         }
         
@@ -443,54 +397,103 @@
             }
         }
         
-        // Animation loop
-        function startAnimationLoop() {
-            function animate(timestamp) {
-                // If paused, don't request next frame
-                if (isPaused) {
-                    animationFrameId = null;
-                    return;
+        // Initialize WebAssembly module
+        async function initWasm() {
+            try {
+                statusElement.textContent = "Loading WASM module...";
+                
+                // Load the WASM file
+                const wasmUrl = 'towerd.wasm';
+                
+                const response = await fetch(wasmUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch WASM: ${response.statusText}`);
                 }
                 
-                // Calculate delta time in seconds
-                if (!lastTimestamp) lastTimestamp = timestamp;
-                const deltaTime = (timestamp - lastTimestamp) / 1000;
-                lastTimestamp = timestamp;
+                const wasmBytes = await response.arrayBuffer();
                 
-                // Call WASM update function
-                zigModule.update(deltaTime);
+                // Instantiate the WebAssembly module
+                const { instance } = await WebAssembly.instantiate(wasmBytes, imports);
+                zigModule = instance.exports;
                 
-                // Draw tower preview if hovering
-                if (currentHoverX >= 0 && currentHoverY >= 0) {
-                    imports.env.drawTowerPreview(currentHoverX, currentHoverY, canPlaceTower);
-                }
+                // Initialize the WASM module with canvas dimensions
+                zigModule.init(canvas.width, canvas.height);
                 
-                // Request next frame
-                animationFrameId = requestAnimationFrame(animate);
-            }
-            
-            // Start the animation loop
-            animationFrameId = requestAnimationFrame(animate);
-        }
-        
-        // Function to select tower type
-        function selectTower(towerType) {
-            // Update UI
-            Object.values(towerButtons).forEach(btn => btn.classList.remove('active'));
-            
-            // Set active class based on selection
-            switch(towerType) {
-                case 1: towerButtons.line.classList.add('active'); break;
-                case 2: towerButtons.triangle.classList.add('active'); break;
-                case 3: towerButtons.square.classList.add('active'); break;
-                case 4: towerButtons.pentagon.classList.add('active'); break;
-            }
-            
-            // Call WASM function to set selected tower type
-            if (typeof zigModule.selectTowerType === 'function') {
-                zigModule.selectTowerType(towerType);
-            } else {
-                console.warn("selectTowerType function not available in WASM module");
+                // Update status
+                statusElement.textContent = "WASM module loaded successfully";
+                
+                // Add click event listener to canvas
+                canvas.addEventListener('click', handleCanvasClick);
+                
+                // Add button event listeners
+                startButton.addEventListener('click', startGame);
+                pauseButton.addEventListener('click', togglePause);
+                
+                // Add tower selection button listeners
+                towerButtons.line.addEventListener('click', () => selectTower(1)); // Line = 1
+                towerButtons.triangle.addEventListener('click', () => selectTower(2)); // Triangle = 2
+                towerButtons.square.addEventListener('click', () => selectTower(3)); // Square = 3
+                towerButtons.pentagon.addEventListener('click', () => selectTower(4)); // Pentagon = 4
+                
+                // Add keyboard event listener
+                window.addEventListener('keydown', (event) => {
+                    if (!zigModule) return;
+                    
+                    switch(event.key) {
+                        case '1': selectTower(1); break;
+                        case '2': selectTower(2); break;
+                        case '3': selectTower(3); break;
+                        case '4': selectTower(4); break;
+                        case 'Escape': selectTower(0); break; // Deselect tower
+                        case ' ': // Space bar
+                            event.preventDefault();
+                            togglePause();
+                            break;
+                    }
+                });
+                
+                // Add mouse move listener for tower placement preview
+                canvas.addEventListener('mousemove', (event) => {
+                    if (!zigModule || isPaused) return;
+                    
+                    const rect = canvas.getBoundingClientRect();
+                    const x = event.clientX - rect.left;
+                    const y = event.clientY - rect.top;
+                    
+                    // Snap to grid
+                    currentHoverX = Math.floor(x / 40) * 40 + 20;
+                    currentHoverY = Math.floor(y / 40) * 40 + 20;
+                    
+                    // Check if we can place tower here
+                    if (typeof zigModule.canPlaceTower === 'function') {
+                        canPlaceTower = zigModule.canPlaceTower(currentHoverX, currentHoverY);
+                    }
+                    
+                    // Request a frame update to show hover effect
+                    if (!animationFrameId) {
+                        requestAnimationFrame(animate);
+                    }
+                });
+                
+                // Mouse leave handler
+                canvas.addEventListener('mouseleave', () => {
+                    currentHoverX = -1;
+                    currentHoverY = -1;
+                });
+                
+            } catch (error) {
+                statusElement.textContent = `Error: ${error.message}`;
+                console.error("WASM initialization error:", error);
+                
+                // Add retry button
+                const retryButton = document.createElement('button');
+                retryButton.textContent = 'Retry Loading';
+                retryButton.onclick = () => {
+                    statusElement.textContent = '';
+                    retryButton.remove();
+                    initWasm();
+                };
+                statusElement.appendChild(retryButton);
             }
         }
         
