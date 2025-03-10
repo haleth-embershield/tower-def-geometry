@@ -31,7 +31,7 @@ pub const TOWER_COOLDOWN_SQUARE: f32 = 0.8;
 pub const TOWER_COOLDOWN_PENTAGON: f32 = 1.5;
 
 // Game settings
-pub const INITIAL_MONEY: u32 = 1000;
+pub const INITIAL_MONEY: u32 = 250;
 pub const INITIAL_LIVES: u32 = 20;
 pub const WAVE_COOLDOWN: f32 = 5.0;
 pub const ENEMY_SPAWN_INTERVAL: f32 = 1.0;
