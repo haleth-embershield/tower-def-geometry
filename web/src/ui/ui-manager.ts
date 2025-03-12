@@ -260,7 +260,7 @@ export class UIManager {
     gameOverElement.classList.add('visible');
     
     // Play appropriate sound
-    this.gameApp.audio.playSound(victory ? 'victory' : 'defeat');
+    this.gameApp.audio.playSound(victory ? 'levelComplete' : 'levelFail');
   }
 
   /**

@@ -48,23 +48,23 @@ export class WasmLoader {
           // Audio functions called from Zig
           playLevelCompleteSound: () => {
             this.logger.log("Playing level complete sound");
-            this.gameApp.audio.playSound('victory');
+            this.gameApp.audio.playSound('levelComplete');
           },
           playLevelFailSound: () => {
             this.logger.log("Playing level fail sound");
-            this.gameApp.audio.playSound('defeat');
+            this.gameApp.audio.playSound('levelFail');
           },
           playTowerShootSound: () => {
             this.logger.log("Playing tower shoot sound");
-            this.gameApp.audio.playSound('shoot');
+            this.gameApp.audio.playSound('towerShoot');
           },
           playEnemyExplosionSound: () => {
             this.logger.log("Playing enemy explosion sound");
-            this.gameApp.audio.playSound('hit');
+            this.gameApp.audio.playSound('enemyExplosion');
           },
           playEnemyHitSound: () => {
             this.logger.log("Playing enemy hit sound");
-            this.gameApp.audio.playSound('hit');
+            this.gameApp.audio.playSound('enemyHit');
           },
           // Canvas rendering functions
           clearCanvas: () => {

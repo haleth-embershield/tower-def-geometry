@@ -27,21 +27,24 @@ export class AudioManager {
     try {
       this.logger.log('Loading audio assets...');
 
-      // Define sound effects to load
+      // Define sound effects to load - only using the available .ogg files
       const soundEffects = {
+        // Original sounds that exist in the public directory
         'enemyHit': 'audio/enemy-hit.ogg',
         'levelComplete': 'audio/level-complete.ogg',
         'levelFail': 'audio/level-fail.ogg',
         'towerShoot': 'audio/tower-shoot.ogg',
         'enemyExplosion': 'audio/enemy-explosion.ogg',
-        'place': 'audio/place.mp3',
-        'shoot': 'audio/shoot.mp3',
-        'hit': 'audio/hit.mp3',
-        'error': 'audio/error.mp3',
-        'wave': 'audio/wave.mp3',
-        'victory': 'audio/victory.mp3',
-        'defeat': 'audio/defeat.mp3',
-        'select': 'audio/select.mp3'
+        
+        // Map missing sounds to existing ones
+        'place': 'audio/tower-shoot.ogg',     // Use tower-shoot for place
+        'shoot': 'audio/tower-shoot.ogg',     // Use tower-shoot for shoot
+        'hit': 'audio/enemy-hit.ogg',         // Use enemy-hit for hit
+        'error': 'audio/enemy-hit.ogg',       // Use enemy-hit for error
+        'wave': 'audio/enemy-explosion.ogg',  // Use enemy-explosion for wave
+        'victory': 'audio/level-complete.ogg', // Use level-complete for victory
+        'defeat': 'audio/level-fail.ogg',     // Use level-fail for defeat
+        'select': 'audio/tower-shoot.ogg'     // Use tower-shoot for select
       };
 
       // Load each sound effect
@@ -56,12 +59,13 @@ export class AudioManager {
         }
       });
 
-      // Load background music
+      // Use level-complete as background music since we don't have a dedicated one
       try {
-        this.backgroundMusic = new Audio('audio/background.mp3');
+        this.backgroundMusic = new Audio('audio/level-complete.ogg');
         this.backgroundMusic.loop = true;
-        this.backgroundMusic.volume = 0.5;
+        this.backgroundMusic.volume = 0.3; // Lower volume for background music
         await this.preloadAudio(this.backgroundMusic);
+        this.logger.log('Background music loaded');
       } catch (err) {
         this.logger.warn('Failed to load background music');
       }
