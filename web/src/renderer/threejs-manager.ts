@@ -69,15 +69,37 @@ export class ThreeJSManager {
     this.mouse = new THREE.Vector2();
     
     // Initialize lighting
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    // Ambient light for base illumination
+    this.ambientLight = new THREE.AmbientLight(0x444444, 0.6);
     this.scene.add(this.ambientLight);
     
-    this.directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    this.directionalLight.position.set(100, 100, 100);
+    // Main directional light (sun-like)
+    this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    this.directionalLight.position.set(300, 400, 300);
     this.directionalLight.castShadow = true;
+    
+    // Configure shadow properties for better quality
     this.directionalLight.shadow.mapSize.width = 2048;
     this.directionalLight.shadow.mapSize.height = 2048;
+    this.directionalLight.shadow.camera.near = 100;
+    this.directionalLight.shadow.camera.far = 1500;
+    this.directionalLight.shadow.camera.left = -700;
+    this.directionalLight.shadow.camera.right = 700;
+    this.directionalLight.shadow.camera.top = 700;
+    this.directionalLight.shadow.camera.bottom = -700;
+    this.directionalLight.shadow.bias = -0.0005;
+    
     this.scene.add(this.directionalLight);
+    
+    // Add a secondary fill light from the opposite direction
+    const fillLight = new THREE.DirectionalLight(0x8888ff, 0.4);
+    fillLight.position.set(-300, 200, -300);
+    this.scene.add(fillLight);
+    
+    // Add a subtle blue rim light from below for dramatic effect
+    const rimLight = new THREE.DirectionalLight(0x0044ff, 0.2);
+    rimLight.position.set(0, -200, 0);
+    this.scene.add(rimLight);
     
     // Initialize controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -136,10 +158,43 @@ export class ThreeJSManager {
       this.originalWidth, 
       this.originalHeight
     );
+    
+    // Create a grid texture programmatically
+    const gridSize = this.gridSize;
+    const gridCanvas = document.createElement('canvas');
+    gridCanvas.width = gridSize;
+    gridCanvas.height = gridSize;
+    const ctx = gridCanvas.getContext('2d');
+    
+    if (ctx) {
+      // Fill with dark color
+      ctx.fillStyle = '#111111';
+      ctx.fillRect(0, 0, gridSize, gridSize);
+      
+      // Draw grid lines
+      ctx.strokeStyle = '#333333';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(gridSize, 0);
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, gridSize);
+      ctx.stroke();
+    }
+    
+    const gridTexture = new THREE.CanvasTexture(gridCanvas);
+    gridTexture.wrapS = THREE.RepeatWrapping;
+    gridTexture.wrapT = THREE.RepeatWrapping;
+    gridTexture.repeat.set(
+      this.originalWidth / gridSize,
+      this.originalHeight / gridSize
+    );
+    
     const groundMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x111111, // Dark gray color for ground
+      color: 0x222222,
       roughness: 0.8,
-      metalness: 0.2
+      metalness: 0.2,
+      map: gridTexture
     });
     
     this.groundPlane = new THREE.Mesh(groundGeometry, groundMaterial);
@@ -147,7 +202,7 @@ export class ThreeJSManager {
     this.groundPlane.receiveShadow = true;
     this.scene.add(this.groundPlane);
     
-    // Create grid
+    // Create grid helper for better visualization
     const gridHelper = new THREE.GridHelper(
       Math.max(this.originalWidth, this.originalHeight), 
       Math.max(this.originalWidth, this.originalHeight) / this.gridSize,
@@ -166,7 +221,8 @@ export class ThreeJSManager {
    */
   private createTowerPreviewMeshes(): void {
     // Tower placement indicator (cube for preview)
-    const previewGeometry = new THREE.BoxGeometry(30, 30, 30);
+    const size = 30;
+    const previewGeometry = new THREE.BoxGeometry(size * 0.8, size, size * 0.8);
     const previewMaterial = new THREE.MeshBasicMaterial({
       color: 0x00ffee,
       transparent: true,
@@ -454,10 +510,14 @@ export class ThreeJSManager {
     
     // Create a box geometry - make it a cube
     const size = Math.max(width, height);
-    const geometry = new THREE.BoxGeometry(size, size, size);
+    const geometry = new THREE.BoxGeometry(size * 0.8, size, size * 0.8); // Slightly narrower for better aesthetics
+    
+    // Create a glowing material for the tower
     const material = new THREE.MeshStandardMaterial({ 
       color: new THREE.Color(r/255, g/255, b/255),
-      emissive: new THREE.Color(r/1000, g/1000, b/1000) // Add slight glow
+      emissive: new THREE.Color(r/255 * 0.3, g/255 * 0.3, b/255 * 0.3), // Stronger glow
+      metalness: 0.7,
+      roughness: 0.2
     });
     
     const mesh = new THREE.Mesh(geometry, material);
@@ -475,19 +535,39 @@ export class ThreeJSManager {
    * Used for enemies - simple colored spheres
    */
   drawCircle(x: number, y: number, radius: number, r: number, g: number, b: number, fill: boolean): void {
+    // More robust health bar detection:
+    // 1. Health bars are typically small circles
+    // 2. Health bars are usually drawn unfilled (wireframe)
+    // 3. Health bars are usually positioned slightly above enemies
+    // 4. Health bars often have specific colors (green/red)
+    
+    // Skip drawing health bars and other UI elements
+    if ((!fill && radius < 15) || // Unfilled small circles (health bars)
+        (y < 20 && radius < 10) || // Small elements at the top of the screen (UI)
+        (radius < 5)) { // Very small elements (probably UI or decorative)
+      return;
+    }
+    
     // Convert 2D game coordinates to 3D world coordinates
     const worldPos = this.gameToWorldCoords(x, y);
     
     // Create a sphere for 3D representation of a circle
     const geometry = new THREE.SphereGeometry(radius, 16, 16);
+    
+    // Create a more vibrant material for enemies
     const material = new THREE.MeshStandardMaterial({ 
       color: new THREE.Color(r/255, g/255, b/255),
-      emissive: new THREE.Color(r/1000, g/1000, b/1000), // Add slight glow
-      wireframe: !fill
+      emissive: new THREE.Color(r/255 * 0.4, g/255 * 0.4, b/255 * 0.4), // Stronger glow
+      wireframe: !fill,
+      metalness: 0.5,
+      roughness: 0.3
     });
     
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(worldPos.x, radius, worldPos.z); // Position at radius height
+    
+    // Position slightly above ground for better visibility
+    const hovering = 2; // Small hover effect
+    mesh.position.set(worldPos.x, radius + hovering, worldPos.z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     
@@ -616,7 +696,8 @@ export class ThreeJSManager {
     
     // Update tower preview position
     if (this.towerPreviewMesh) {
-      this.towerPreviewMesh.position.set(worldPos.x, 2.5, worldPos.z);
+      const size = 30; // Match the size used in createTowerPreviewMeshes
+      this.towerPreviewMesh.position.set(worldPos.x, size/2, worldPos.z); // Position at half height
       this.towerPreviewMesh.visible = true;
       
       // Update material color based on placement validity
