@@ -82,9 +82,9 @@ pub fn build(b: *std.Build) void {
 
     // Add a run step to start Bun's development server
     const bun_serve_cmd = if (builtin.os.tag == .windows)
-        &[_][]const u8{ "cmd", "/c", "bun", "run", "http" }
+        &[_][]const u8{ "cmd", "/c", "bun", "run", "dev" }
     else
-        &[_][]const u8{ "bun", "run", "http" };
+        &[_][]const u8{ "bun", "run", "dev" };
 
     const run_cmd = b.addSystemCommand(bun_serve_cmd);
     run_cmd.step.dependOn(&copy_wasm.step);

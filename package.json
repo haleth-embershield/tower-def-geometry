@@ -9,7 +9,7 @@
     "lint": "eslint web/src/**/*.ts",
     "format": "prettier --write web/src/**/*.ts",
     "start": "zig build run",
-    "http": "bun run server.js"
+    "dev": "bun --hot run dev-server.js"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.21.0",
