@@ -18,5 +18,17 @@ export interface WasmModule {
   // Memory management functions (if needed)
   memory: WebAssembly.Memory;
   
+  // Audio functions for embedded audio files
+  getEnemyHitAudioPtr(): number;
+  getEnemyHitAudioLen(): number;
+  getLevelCompleteAudioPtr(): number;
+  getLevelCompleteAudioLen(): number;
+  getLevelFailAudioPtr(): number;
+  getLevelFailAudioLen(): number;
+  getTowerShootAudioPtr(): number;
+  getTowerShootAudioLen(): number;
+  getEnemyExplosionAudioPtr(): number;
+  getEnemyExplosionAudioLen(): number;
+  
   // Add additional exported functions as needed
 } 

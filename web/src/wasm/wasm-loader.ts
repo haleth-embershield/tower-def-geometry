@@ -47,24 +47,25 @@ export class WasmLoader {
           },
           // Audio functions called from Zig
           playLevelCompleteSound: () => {
-            this.logger.log("Playing level complete sound");
-            this.gameApp.audio.playSound('levelComplete');
+            this.logger.log("Playing level complete sound (from WASM callback)");
+            // We'll now use the embedded audio data instead of loading from file
+            this.playEmbeddedSound('levelComplete');
           },
           playLevelFailSound: () => {
-            this.logger.log("Playing level fail sound");
-            this.gameApp.audio.playSound('levelFail');
+            this.logger.log("Playing level fail sound (from WASM callback)");
+            this.playEmbeddedSound('levelFail');
           },
           playTowerShootSound: () => {
-            this.logger.log("Playing tower shoot sound");
-            this.gameApp.audio.playSound('towerShoot');
+            this.logger.log("Playing tower shoot sound (from WASM callback)");
+            this.playEmbeddedSound('towerShoot');
           },
           playEnemyExplosionSound: () => {
-            this.logger.log("Playing enemy explosion sound");
-            this.gameApp.audio.playSound('enemyExplosion');
+            this.logger.log("Playing enemy explosion sound (from WASM callback)");
+            this.playEmbeddedSound('enemyExplosion');
           },
           playEnemyHitSound: () => {
-            this.logger.log("Playing enemy hit sound");
-            this.gameApp.audio.playSound('enemyHit');
+            this.logger.log("Playing enemy hit sound (from WASM callback)");
+            this.playEmbeddedSound('enemyHit');
           },
           // Canvas rendering functions
           clearCanvas: () => {
@@ -176,8 +177,68 @@ export class WasmLoader {
       this.logger.log("WASM module loaded successfully");
       return this.wasmModule;
     } catch (error) {
-      this.logger.error(`Failed to load WASM module: ${error}`);
+      this.logger.error(`Error loading WASM module: ${error}`);
       throw error;
+    }
+  }
+
+  /**
+   * Play a sound using the audio data embedded in the WASM module
+   * @param soundName The name of the sound to play
+   */
+  private async playEmbeddedSound(soundName: string): Promise<void> {
+    if (!this.wasmModule) return;
+    
+    try {
+      let audioPtr: number;
+      let audioLen: number;
+      
+      // Get the appropriate audio data based on the sound name
+      switch (soundName) {
+        case 'enemyHit':
+          audioPtr = this.wasmModule.getEnemyHitAudioPtr();
+          audioLen = this.wasmModule.getEnemyHitAudioLen();
+          break;
+        case 'levelComplete':
+          audioPtr = this.wasmModule.getLevelCompleteAudioPtr();
+          audioLen = this.wasmModule.getLevelCompleteAudioLen();
+          break;
+        case 'levelFail':
+          audioPtr = this.wasmModule.getLevelFailAudioPtr();
+          audioLen = this.wasmModule.getLevelFailAudioLen();
+          break;
+        case 'towerShoot':
+          audioPtr = this.wasmModule.getTowerShootAudioPtr();
+          audioLen = this.wasmModule.getTowerShootAudioLen();
+          break;
+        case 'enemyExplosion':
+          audioPtr = this.wasmModule.getEnemyExplosionAudioPtr();
+          audioLen = this.wasmModule.getEnemyExplosionAudioLen();
+          break;
+        default:
+          this.logger.warn(`Unknown embedded sound: ${soundName}`);
+          return;
+      }
+      
+      // Get the memory buffer from the WASM module
+      const memory = this.wasmModule.memory;
+      const buffer = new Uint8Array(memory.buffer, audioPtr, audioLen);
+      
+      // Create a blob from the buffer
+      const blob = new Blob([buffer], { type: 'audio/ogg' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create and play the audio
+      const audio = new Audio(url);
+      audio.volume = 0.7;
+      await audio.play();
+      
+      // Clean up the URL after the audio has played
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+      };
+    } catch (error) {
+      this.logger.error(`Error playing embedded sound ${soundName}: ${error}`);
     }
   }
 

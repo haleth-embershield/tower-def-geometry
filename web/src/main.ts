@@ -102,10 +102,13 @@ class GameApplication {
       await this.wasmLoader.initializeGame(width, height);
       
       // Update status
-      this.updateStatus('Game ready');
+      this.updateStatus('Game ready!');
+      
+      // We'll play background music when the user clicks the Start Game button instead
+      // this.audio.playBackgroundMusic();
     } catch (error) {
-      this.logger.error(`Initialization error: ${error}`);
       this.updateStatus(`Error: ${error}`);
+      this.logger.error(`Initialization error: ${error}`);
     }
   }
   
@@ -123,6 +126,10 @@ class GameApplication {
     if (!this.animationFrameId) {
       this.startAnimationLoop();
     }
+    
+    // Play background music when user starts the game
+    // This will work because it's triggered by user interaction
+    this.audio.playBackgroundMusic();
   }
   
   // Toggle pause state

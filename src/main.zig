@@ -4,6 +4,8 @@
 const std = @import("std");
 const logger = @import("utils/logger.zig");
 const Game = @import("game.zig").Game;
+// Import the audio module
+const audio = @import("assets/audio.zig");
 
 // Global state
 var canvas_width: f32 = 800;

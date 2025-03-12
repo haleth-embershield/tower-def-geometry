@@ -28,15 +28,9 @@ export class AudioManager {
       this.logger.log('Loading audio assets...');
 
       // Define sound effects to load - only using the available .ogg files
+      // Note: These are now loaded from WASM, but we keep the structure for compatibility
       const soundEffects = {
-        // Original sounds that exist in the public directory
-        'enemyHit': 'audio/enemy-hit.ogg',
-        'levelComplete': 'audio/level-complete.ogg',
-        'levelFail': 'audio/level-fail.ogg',
-        'towerShoot': 'audio/tower-shoot.ogg',
-        'enemyExplosion': 'audio/enemy-explosion.ogg',
-        
-        // Map missing sounds to existing ones
+        // Map missing sounds to existing ones for compatibility
         'place': 'audio/tower-shoot.ogg',     // Use tower-shoot for place
         'shoot': 'audio/tower-shoot.ogg',     // Use tower-shoot for shoot
         'hit': 'audio/enemy-hit.ogg',         // Use enemy-hit for hit
@@ -59,13 +53,13 @@ export class AudioManager {
         }
       });
 
-      // Use level-complete as background music since we don't have a dedicated one
+      // Load background music from public directory
       try {
-        this.backgroundMusic = new Audio('audio/level-complete.ogg');
+        this.backgroundMusic = new Audio('audio/background.ogg');
         this.backgroundMusic.loop = true;
         this.backgroundMusic.volume = 0.3; // Lower volume for background music
         await this.preloadAudio(this.backgroundMusic);
-        this.logger.log('Background music loaded');
+        this.logger.log('Background music loaded from public directory');
       } catch (err) {
         this.logger.warn('Failed to load background music');
       }
@@ -145,39 +139,40 @@ export class AudioManager {
   }
 
   // Specific sound methods to match the original API
+  // Note: These are now handled by WASM, but we keep them for compatibility
   
   /**
    * Play enemy hit sound
    */
   playEnemyHitSound(): void {
-    this.playSound('enemyHit');
+    this.playSound('hit');
   }
   
   /**
    * Play level complete sound
    */
   playLevelCompleteSound(): void {
-    this.playSound('levelComplete');
+    this.playSound('victory');
   }
   
   /**
    * Play level fail sound
    */
   playLevelFailSound(): void {
-    this.playSound('levelFail');
+    this.playSound('defeat');
   }
   
   /**
    * Play tower shoot sound
    */
   playTowerShootSound(): void {
-    this.playSound('towerShoot');
+    this.playSound('shoot');
   }
   
   /**
    * Play enemy explosion sound
    */
   playEnemyExplosionSound(): void {
-    this.playSound('enemyExplosion');
+    this.playSound('wave');
   }
 } 
