@@ -36,6 +36,97 @@ export class WasmLoader {
             // Implementation would depend on how strings are passed from Zig
             // This is a placeholder
             this.logger.log(`[WASM] Log message from ptr ${ptr}, len: ${len}`);
+          },
+          // Audio functions called from Zig
+          playLevelCompleteSound: () => {
+            this.logger.log("Playing level complete sound");
+            this.gameApp.audio.playSound('victory');
+          },
+          playLevelFailSound: () => {
+            this.logger.log("Playing level fail sound");
+            this.gameApp.audio.playSound('defeat');
+          },
+          playTowerShootSound: () => {
+            this.logger.log("Playing tower shoot sound");
+            this.gameApp.audio.playSound('shoot');
+          },
+          playEnemyExplosionSound: () => {
+            this.logger.log("Playing enemy explosion sound");
+            this.gameApp.audio.playSound('hit');
+          },
+          playEnemyHitSound: () => {
+            this.logger.log("Playing enemy hit sound");
+            this.gameApp.audio.playSound('hit');
+          },
+          // Canvas rendering functions
+          clearCanvas: () => {
+            const ctx = this.gameApp.canvas.getContext();
+            const { width, height } = this.gameApp.canvas.getDimensions();
+            if (ctx) {
+              ctx.clearRect(0, 0, width, height);
+            }
+          },
+          drawRect: (x: number, y: number, width: number, height: number, r: number, g: number, b: number) => {
+            const ctx = this.gameApp.canvas.getContext();
+            if (ctx) {
+              ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+              ctx.fillRect(x, y, width, height);
+            }
+          },
+          drawCircle: (x: number, y: number, radius: number, r: number, g: number, b: number, fill: boolean) => {
+            const ctx = this.gameApp.canvas.getContext();
+            if (ctx) {
+              ctx.beginPath();
+              ctx.arc(x, y, radius, 0, Math.PI * 2);
+              if (fill) {
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                ctx.fill();
+              } else {
+                ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+                ctx.stroke();
+              }
+            }
+          },
+          drawLine: (x1: number, y1: number, x2: number, y2: number, thickness: number, r: number, g: number, b: number) => {
+            const ctx = this.gameApp.canvas.getContext();
+            if (ctx) {
+              ctx.beginPath();
+              ctx.moveTo(x1, y1);
+              ctx.lineTo(x2, y2);
+              ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+              ctx.lineWidth = thickness;
+              ctx.stroke();
+            }
+          },
+          drawTriangle: (x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, r: number, g: number, b: number, fill: boolean) => {
+            const ctx = this.gameApp.canvas.getContext();
+            if (ctx) {
+              ctx.beginPath();
+              ctx.moveTo(x1, y1);
+              ctx.lineTo(x2, y2);
+              ctx.lineTo(x3, y3);
+              ctx.closePath();
+              if (fill) {
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                ctx.fill();
+              } else {
+                ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+                ctx.stroke();
+              }
+            }
+          },
+          drawText: (x: number, y: number, text_ptr: number, text_len: number, size: number, r: number, g: number, b: number) => {
+            const ctx = this.gameApp.canvas.getContext();
+            if (!ctx) return;
+            
+            // For now, we'll just log that we would draw text
+            // In a real implementation, we would need to convert the text_ptr to a string
+            // This would require access to the WebAssembly memory, which is only available after instantiation
+            this.logger.log(`Would draw text at (${x}, ${y}) with size ${size} and color rgb(${r}, ${g}, ${b})`);
+            
+            // Draw a placeholder rectangle to show where the text would be
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.fillRect(x, y - size, size * 5, size); // Approximate text width
           }
         }
       };
