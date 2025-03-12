@@ -127,14 +127,33 @@ export class WasmLoader {
             const ctx = this.gameApp.canvas.getContext();
             if (!ctx) return;
             
-            // For now, we'll just log that we would draw text
-            // In a real implementation, we would need to convert the text_ptr to a string
-            // This would require access to the WebAssembly memory, which is only available after instantiation
-            this.logger.log(`Would draw text at (${x}, ${y}) with size ${size} and color rgb(${r}, ${g}, ${b})`);
-            
-            // Draw a placeholder rectangle to show where the text would be
-            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-            ctx.fillRect(x, y - size, size * 5, size); // Approximate text width
+            try {
+              // We need to wait until the WASM module is instantiated to access memory
+              if (!this.wasmModule || !this.wasmModule.memory) {
+                // Draw a placeholder rectangle until WASM is fully loaded
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                ctx.fillRect(x, y - size, size * 5, size);
+                return;
+              }
+              
+              // Create a view into the WebAssembly memory
+              const memoryView = new Uint8Array(this.wasmModule.memory.buffer);
+              
+              // Extract the text from memory
+              const textBytes = memoryView.slice(text_ptr, text_ptr + text_len);
+              const text = new TextDecoder().decode(textBytes);
+              
+              // Draw the text
+              ctx.font = `${size}px sans-serif`;
+              ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+              ctx.fillText(text, x, y);
+            } catch (error) {
+              this.logger.error(`Error drawing text: ${error}`);
+              
+              // Fallback to drawing a placeholder rectangle
+              ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+              ctx.fillRect(x, y - size, size * 5, size);
+            }
           }
         }
       };
@@ -146,6 +165,13 @@ export class WasmLoader {
       
       // Cast the exports to our WasmModule interface
       this.wasmModule = instance.exports as unknown as WasmModule;
+      
+      // Verify that memory is accessible
+      if (!this.wasmModule.memory) {
+        this.logger.warn("WebAssembly memory not exported. Text rendering may not work correctly.");
+      } else {
+        this.logger.log("WebAssembly memory initialized successfully");
+      }
       
       this.logger.log("WASM module loaded successfully");
       return this.wasmModule;
