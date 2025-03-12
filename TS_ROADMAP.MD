@@ -28,7 +28,6 @@ I recommend reorganizing the project structure as follows:
 tower-def-geometry/
 ├── src/                      # Zig source code (unchanged)
 ├── build.zig                 # Zig build file (to be updated)
-├── setup_zerver.zig          # Server setup (unchanged)
 ├── assets/                   # Game assets (unchanged)
 ├── web/                      # Renamed from www
 │   ├── src/                  # TypeScript source files
@@ -55,38 +54,25 @@ tower-def-geometry/
 │   ├── towerd.wasm           # WASM file
 │   ├── index.html            # Processed HTML
 │   └── ...                   # Other assets
-└── package.json              # npm/bun package configuration
+└── package.json              # Bun package configuration
 ```
 
 ### 2. Build Tools Selection
 
-#### TypeScript Compiler
+#### TypeScript Compiler and Bundler
 
-For TypeScript compilation, I recommend using the TypeScript compiler (tsc) directly for simplicity, combined with a minimal bundler like esbuild. This approach keeps dependencies minimal.
+For TypeScript compilation and bundling, we will use Bun exclusively. Bun provides:
 
-#### Module Bundler
+- Native TypeScript support without additional dependencies
+- Extremely fast compilation and bundling
+- Built-in development server with hot reloading
+- Minimal configuration required
 
-**Recommendation: esbuild**
+This approach keeps dependencies minimal and simplifies the development workflow by using a single tool for package management, TypeScript compilation, bundling, and serving.
 
-I recommend using esbuild for bundling:
-- Extremely fast (10-100x faster than webpack, rollup, parcel)
-- Minimal configuration
-- Built-in TypeScript support
-- Very small dependency footprint
-- Active development and good community support
+#### Development Server
 
-I don't recommend Vite for this project as it's more tailored to React/Vue applications and might be overkill. Similarly, webpack is too complex for this use case.
-
-#### Package Manager
-
-**Recommendation: Bun**
-
-I recommend using Bun as your package manager and runtime:
-- Much faster than npm/yarn
-- Built-in bundler (though esbuild is still recommended for production builds)
-- Great TypeScript support
-- Compatible with npm packages
-- Simple and fast dev server included
+We will replace the custom HTTP server (http-zerver) with Bun's built-in server. This reduces dependencies and simplifies the setup, requiring only Zig and Bun to be installed.
 
 ### 3. Implementation Plan
 
@@ -99,8 +85,8 @@ bun init
 
 2. Install required dependencies:
 ```bash
-bun add typescript esbuild --dev
-bun add @types/wasm-loader --dev  # If available
+bun add typescript --dev
+bun add @types/web --dev  # For web API types
 ```
 
 3. Create a `tsconfig.json` file:
@@ -156,11 +142,12 @@ Convert the existing JavaScript files to TypeScript, starting with the WASM load
 
 #### Step 4: Update the Build Process
 
-Modify `build.zig` to incorporate TypeScript compilation and asset processing:
+Modify `build.zig` to incorporate TypeScript compilation and asset processing using Bun:
 
-1. Add a step to run the TypeScript build process
+1. Add a step to run the Bun build process
 2. Update the deployment paths to the new structure
 3. Configure the build to output to the `dist` directory
+4. Replace http-zerver with Bun's server
 
 #### Step 5: Add Development Scripts
 
@@ -169,8 +156,8 @@ Add useful scripts to the `package.json`:
 ```json
 {
   "scripts": {
-    "dev": "bun run --watch web/src/main.ts --serve",
-    "build": "esbuild web/src/main.ts --bundle --minify --sourcemap --outdir=dist/js",
+    "dev": "bun --hot web/src/main.ts --serve --port 8000",
+    "build": "bun build web/src/main.ts --outdir dist/js",
     "check": "tsc --noEmit",
     "start": "zig build run"
   }
@@ -179,31 +166,30 @@ Add useful scripts to the `package.json`:
 
 ### 4. Integration with Zig Build System
 
-Here's how to update `build.zig` to incorporate TypeScript compilation:
+Here's how to update `build.zig` to incorporate Bun for TypeScript compilation and serving:
 
 ```zig
 // Add to build.zig
-const ts_build_cmd = if (builtin.os.tag == .windows)
+const bun_build_cmd = if (builtin.os.tag == .windows)
     &[_][]const u8{"cmd", "/c", "bun", "run", "build"}
 else
     &[_][]const u8{"bun", "run", "build"};
 
-const build_ts = b.addSystemCommand(ts_build_cmd);
-build_ts.step.dependOn(&make_www.step);
+const build_ts = b.addSystemCommand(bun_build_cmd);
+build_ts.step.dependOn(&make_dirs.step);
 
 // Update the output paths
 const copy_wasm = b.addInstallFile(exe.getEmittedBin(), "../dist/towerd.wasm");
 copy_wasm.step.dependOn(b.getInstallStep());
 copy_wasm.step.dependOn(&build_ts.step);
 
-// Update server paths
-const run_cmd = b.addSystemCommand(&[_][]const u8{
-    server_path,
-    "--port",
-    "8000",
-    "--dir",
-    "dist",
-});
+// Use Bun as the development server
+const bun_serve_cmd = if (builtin.os.tag == .windows)
+    &[_][]const u8{"cmd", "/c", "bun", "serve", "--port", "8000", "dist"}
+else
+    &[_][]const u8{"bun", "serve", "--port", "8000", "dist"};
+
+const run_cmd = b.addSystemCommand(bun_serve_cmd);
 ```
 
 ### 5. Development Workflow
@@ -215,10 +201,9 @@ The new development workflow will be:
 3. Run `bun run dev` for TypeScript development with hot reloading
 4. Run `zig build run` to:
    - Compile Zig to WASM
-   - Compile TypeScript to JavaScript
-   - Bundle and minify JavaScript
+   - Compile TypeScript to JavaScript using Bun
    - Copy all assets to the `dist` directory
-   - Start the HTTP server
+   - Start the Bun development server
 
 ## Implementation Notes
 
@@ -281,14 +266,26 @@ module.exports = {
 };
 ```
 
+### Future Enhancements: WebGPU Integration
+
+A stretch goal for this project is to incorporate WebGPU for hardware-accelerated graphics:
+
+1. **Initial Implementation**: Use ThreeJS with its WebGPU renderer for 3D graphics
+2. **Advanced Implementation**: Create direct Zig WebGPU bindings for maximum performance
+3. **Benefits**:
+   - Hardware-accelerated rendering
+   - Access to modern GPU features
+   - Compute capabilities for physics and simulations
+
 ## Conclusion
 
 This roadmap provides a comprehensive plan for integrating TypeScript into your Zig WebAssembly tower defense game. The approach focuses on:
 
-1. Minimizing dependencies while maximizing developer experience
+1. Minimizing dependencies by using Bun exclusively for all frontend tooling
 2. Creating a clear separation between Zig and TypeScript code
 3. Ensuring type safety across the codebase
 4. Maintaining a simple build process
 5. Keeping the development workflow efficient
+6. Providing a path to WebGPU integration for future enhancements
 
 By following this roadmap, you'll have a modern, type-safe frontend that integrates seamlessly with your Zig WebAssembly backend while maintaining a minimal dependency footprint. 

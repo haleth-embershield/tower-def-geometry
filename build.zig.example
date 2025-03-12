@@ -31,28 +31,22 @@ pub fn build(b: *std.Build) void {
     // Install in the output directory
     b.installArtifact(exe);
 
-    // Build setup_zerver executable first - using native target
-    const setup_zerver = b.addExecutable(.{
-        .name = "setup_zerver",
-        .root_source_file = b.path("setup_zerver.zig"),
-        .target = native_target,
-        .optimize = optimize,
+    // Create necessary directories
+    const make_dirs = b.addSystemCommand(&[_][]const u8{
+        if (builtin.os.tag == .windows) "cmd" else "mkdir",
+        if (builtin.os.tag == .windows) "/c" else "-p",
+        "dist",
     });
-    b.installArtifact(setup_zerver);
+    make_dirs.step.dependOn(b.getInstallStep());
 
-    // Run setup_zerver to create directories and get http-zerver
-    const setup_path = b.getInstallPath(.bin, "setup_zerver");
-    const make_www = b.addSystemCommand(&[_][]const u8{setup_path});
-    make_www.step.dependOn(b.getInstallStep());
-
-    // Add TypeScript build step
-    const ts_build_cmd = if (builtin.os.tag == .windows)
+    // Add TypeScript build step using Bun
+    const bun_build_cmd = if (builtin.os.tag == .windows)
         &[_][]const u8{"cmd", "/c", "bun", "run", "build"}
     else
         &[_][]const u8{"bun", "run", "build"};
 
-    const build_ts = b.addSystemCommand(ts_build_cmd);
-    build_ts.step.dependOn(&make_www.step);
+    const build_ts = b.addSystemCommand(bun_build_cmd);
+    build_ts.step.dependOn(&make_dirs.step);
 
     // Create a step to copy the WASM file to the dist directory
     const copy_wasm = b.addInstallFile(exe.getEmittedBin(), "../dist/towerd.wasm");
@@ -65,7 +59,7 @@ pub fn build(b: *std.Build) void {
         .install_dir = .{ .custom = "../dist" },
         .install_subdir = "",
     });
-    copy_assets.step.dependOn(&make_www.step);
+    copy_assets.step.dependOn(&make_dirs.step);
 
     // Create a step to copy all files from web/public to the dist directory
     const copy_public = b.addInstallDirectory(.{
@@ -73,31 +67,25 @@ pub fn build(b: *std.Build) void {
         .install_dir = .{ .custom = "../dist" },
         .install_subdir = "",
     });
-    copy_public.step.dependOn(&make_www.step);
+    copy_public.step.dependOn(&make_dirs.step);
 
     // Create a step to copy index.html to the dist directory
     const copy_html = b.addInstallFile(b.path("web/index.html"), "../dist/index.html");
-    copy_html.step.dependOn(&make_www.step);
+    copy_html.step.dependOn(&make_dirs.step);
 
-    // Add a run step to start http-zerver
-    const server_path = if (builtin.os.tag == .windows)
-        "http-zerver.exe"
+    // Add a run step to start Bun's development server
+    const bun_serve_cmd = if (builtin.os.tag == .windows)
+        &[_][]const u8{"cmd", "/c", "bun", "serve", "--port", "8000", "dist"}
     else
-        "./http-zerver";
+        &[_][]const u8{"bun", "serve", "--port", "8000", "dist"};
 
-    const run_cmd = b.addSystemCommand(&[_][]const u8{
-        server_path,
-        "--port",
-        "8000",
-        "--dir",
-        "dist",
-    });
+    const run_cmd = b.addSystemCommand(bun_serve_cmd);
     run_cmd.step.dependOn(&copy_wasm.step);
     run_cmd.step.dependOn(&copy_assets.step);
     run_cmd.step.dependOn(&copy_public.step);
     run_cmd.step.dependOn(&copy_html.step);
 
-    const run_step = b.step("run", "Build, deploy, and start HTTP server");
+    const run_step = b.step("run", "Build, deploy, and start Bun development server");
     run_step.dependOn(&run_cmd.step);
 
     // Add a deploy step that only copies the files without starting the server

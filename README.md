@@ -1,4 +1,4 @@
-# Zig + TypeScript = WebAssembly Project Template
+# Zig + TypeScript + WebAssembly Project Template
 
 A modern project template for building web applications using Zig for backend logic compiled to WebAssembly, with a TypeScript frontend. The template uses a tower defense game as an example implementation.
 
@@ -8,9 +8,8 @@ This template demonstrates a lightweight but powerful architecture:
 
 - **Backend**: [Zig](https://ziglang.org/) (v0.14+) compiled to WebAssembly
 - **Frontend**: [TypeScript](https://www.typescriptlang.org/) with strict type-checking 
-- **Package Manager**: [Bun](https://bun.sh/) for fast dependency management and development server
-- **Bundler**: [esbuild](https://esbuild.github.io/) for efficient TypeScript compilation and bundling
-- **Development Server**: Simple HTTP server via Zig's build system
+- **Package Manager & Build Tool**: [Bun](https://bun.sh/) for fast dependency management, TypeScript compilation, and development server
+- **Development Server**: Bun's built-in server for local development
 
 ## Why This Stack?
 
@@ -26,10 +25,12 @@ This template demonstrates a lightweight but powerful architecture:
 - **Maintainability**: Types as documentation and easier refactoring
 - **Modern JavaScript**: Access to the latest ECMAScript features with backwards compatibility
 
-### Bun + esbuild
-- **Speed**: Extremely fast package installation and builds
+### Bun
+- **All-in-One Tool**: Package manager, bundler, and development server in one
+- **Speed**: Extremely fast package installation and builds (up to 30x faster than npm)
 - **Simplicity**: Minimal configuration needed
 - **Developer Experience**: Quick feedback loop during development
+- **TypeScript Support**: Native TypeScript support without additional tools
 
 ## Requirements
 
@@ -43,7 +44,6 @@ This template demonstrates a lightweight but powerful architecture:
 project-root/
 ├── src/                      # Zig source code
 ├── build.zig                 # Zig build system configuration
-├── setup_zerver.zig          # Development server setup
 ├── assets/                   # Static assets
 ├── web/                      # Frontend code
 │   ├── src/                  # TypeScript source files
@@ -59,7 +59,7 @@ project-root/
 │   ├── public/               # Static assets that don't need processing
 │   └── index.html            # Main HTML file
 ├── dist/                     # Output directory for built files
-├── package.json              # Bun/npm dependencies and scripts
+├── package.json              # Bun dependencies and scripts
 └── tsconfig.json             # TypeScript configuration
 ```
 
@@ -97,9 +97,9 @@ zig build run
 This command:
 1. Compiles Zig code to WebAssembly
 2. Compiles TypeScript to JavaScript
-3. Bundles JS and CSS files
+3. Bundles JS files
 4. Copies all assets to the dist directory
-5. Starts the HTTP server
+5. Starts the Bun development server
 
 #### Other Useful Commands
 
@@ -141,6 +141,18 @@ To use this as a template for your own project:
 3. Modify the frontend in `web/src/` to implement your application UI
 4. Update this README.md with your project details
 
+## Future Enhancements
+
+### WebGPU Integration
+A stretch goal for this template is to incorporate WebGPU for hardware-accelerated graphics:
+- Initially using ThreeJS with WebGPU renderer
+- Eventually moving to direct Zig WebGPU bindings for maximum performance
+- Enabling high-performance 3D graphics and compute capabilities
+
 ## Contributing
 
 Contributions to improve this template are welcome! Please feel free to submit issues or pull requests.
+
+## License
+
+MIT
