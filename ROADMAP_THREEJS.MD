@@ -1,3 +1,5 @@
+***NOTE: THREEJS FOR RENDERING ONLY, NO GAME LOGIC OR GAME STATE***
+
 # Migration Roadmap: 2D Canvas to ThreeJS Isometric View
 
 This roadmap outlines the steps for transitioning our tower defense game from a 2D Canvas implementation to a 3D isometric view using ThreeJS, while maintaining the Zig WebAssembly backend for game logic and physics.

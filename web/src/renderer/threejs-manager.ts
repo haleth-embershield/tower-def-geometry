@@ -34,10 +34,13 @@ export class ThreeJSManager {
   private textCanvas: HTMLCanvasElement;
   private textContext: CanvasRenderingContext2D | null = null;
   
+  // Object tracking for cleanup
+  private sceneObjects: THREE.Object3D[] = [];
+  
   constructor(containerId: string) {
     // Initialize ThreeJS core components
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x87CEEB); // Sky blue background
+    this.scene.background = new THREE.Color(0x000000); // Black background
     
     // Create orthographic camera for isometric view
     const aspectRatio = this.originalWidth / this.originalHeight;
@@ -66,7 +69,7 @@ export class ThreeJSManager {
     this.mouse = new THREE.Vector2();
     
     // Initialize lighting
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     this.scene.add(this.ambientLight);
     
     this.directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -134,7 +137,7 @@ export class ThreeJSManager {
       this.originalHeight
     );
     const groundMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x3a7e4f, // Green color for ground
+      color: 0x111111, // Dark gray color for ground
       roughness: 0.8,
       metalness: 0.2
     });
@@ -148,8 +151,8 @@ export class ThreeJSManager {
     const gridHelper = new THREE.GridHelper(
       Math.max(this.originalWidth, this.originalHeight), 
       Math.max(this.originalWidth, this.originalHeight) / this.gridSize,
-      0x000000,
-      0x555555
+      0x444444,
+      0x222222
     );
     gridHelper.position.y = 0.1; // Slightly above ground to avoid z-fighting
     this.scene.add(gridHelper);
@@ -162,8 +165,8 @@ export class ThreeJSManager {
    * Create meshes used for tower placement preview
    */
   private createTowerPreviewMeshes(): void {
-    // Tower placement indicator
-    const previewGeometry = new THREE.CylinderGeometry(20, 20, 5, 32);
+    // Tower placement indicator (cube for preview)
+    const previewGeometry = new THREE.BoxGeometry(30, 30, 30);
     const previewMaterial = new THREE.MeshBasicMaterial({
       color: 0x00ffee,
       transparent: true,
@@ -404,8 +407,25 @@ export class ThreeJSManager {
    * Clear the scene (equivalent to canvas clear)
    */
   clear(): void {
-    // In ThreeJS, we don't need to clear the scene on each frame
-    // Instead, we update object positions/visibility as needed
+    // Remove all tracked objects from the scene
+    for (const obj of this.sceneObjects) {
+      this.scene.remove(obj);
+      
+      // Dispose of geometries and materials to prevent memory leaks
+      if (obj instanceof THREE.Mesh) {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(material => material.dispose());
+          } else {
+            obj.material.dispose();
+          }
+        }
+      }
+    }
+    
+    // Clear the array
+    this.sceneObjects = [];
     
     // Clear the text canvas
     if (this.textContext) {
@@ -425,52 +445,59 @@ export class ThreeJSManager {
   }
   
   /**
-   * Draw a rectangle (creates or updates a mesh)
+   * Draw a rectangle (creates a cube in 3D)
+   * Used for towers - simple colored cubes
    */
   drawRect(x: number, y: number, width: number, height: number, r: number, g: number, b: number): void {
     // Convert 2D game coordinates to 3D world coordinates
     const worldPos = this.gameToWorldCoords(x + width/2, y + height/2);
     
-    // Create a box geometry
-    const geometry = new THREE.BoxGeometry(width, 10, height);
+    // Create a box geometry - make it a cube
+    const size = Math.max(width, height);
+    const geometry = new THREE.BoxGeometry(size, size, size);
     const material = new THREE.MeshStandardMaterial({ 
-      color: new THREE.Color(r/255, g/255, b/255) 
+      color: new THREE.Color(r/255, g/255, b/255),
+      emissive: new THREE.Color(r/1000, g/1000, b/1000) // Add slight glow
     });
     
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(worldPos.x, 5, worldPos.z); // Position at half height
+    mesh.position.set(worldPos.x, size/2, worldPos.z); // Position at half height
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     
-    // Add to scene
+    // Add to scene and track
     this.scene.add(mesh);
+    this.sceneObjects.push(mesh);
   }
   
   /**
-   * Draw a circle (creates or updates a mesh)
+   * Draw a circle (creates a sphere in 3D)
+   * Used for enemies - simple colored spheres
    */
   drawCircle(x: number, y: number, radius: number, r: number, g: number, b: number, fill: boolean): void {
     // Convert 2D game coordinates to 3D world coordinates
     const worldPos = this.gameToWorldCoords(x, y);
     
-    // Create a cylinder for 3D representation of a circle
-    const geometry = new THREE.CylinderGeometry(radius, radius, 10, 32);
+    // Create a sphere for 3D representation of a circle
+    const geometry = new THREE.SphereGeometry(radius, 16, 16);
     const material = new THREE.MeshStandardMaterial({ 
       color: new THREE.Color(r/255, g/255, b/255),
+      emissive: new THREE.Color(r/1000, g/1000, b/1000), // Add slight glow
       wireframe: !fill
     });
     
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(worldPos.x, 5, worldPos.z); // Position at half height
+    mesh.position.set(worldPos.x, radius, worldPos.z); // Position at radius height
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     
-    // Add to scene
+    // Add to scene and track
     this.scene.add(mesh);
+    this.sceneObjects.push(mesh);
   }
   
   /**
-   * Draw a line (creates or updates a mesh)
+   * Draw a line (creates a line in 3D)
    */
   drawLine(x1: number, y1: number, x2: number, y2: number, thickness: number, r: number, g: number, b: number): void {
     // Convert 2D game coordinates to 3D world coordinates
@@ -479,8 +506,8 @@ export class ThreeJSManager {
     
     // Create line geometry
     const points = [
-      new THREE.Vector3(worldPos1.x, 1, worldPos1.z), // Slightly above ground
-      new THREE.Vector3(worldPos2.x, 1, worldPos2.z)
+      new THREE.Vector3(worldPos1.x, 5, worldPos1.z), // Slightly above ground
+      new THREE.Vector3(worldPos2.x, 5, worldPos2.z)
     ];
     
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
@@ -491,12 +518,13 @@ export class ThreeJSManager {
     
     const line = new THREE.Line(geometry, material);
     
-    // Add to scene
+    // Add to scene and track
     this.scene.add(line);
+    this.sceneObjects.push(line);
   }
   
   /**
-   * Draw a triangle (creates or updates a mesh)
+   * Draw a triangle (creates a triangle in 3D)
    */
   drawTriangle(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, r: number, g: number, b: number, fill: boolean): void {
     // Convert 2D game coordinates to 3D world coordinates
@@ -507,9 +535,9 @@ export class ThreeJSManager {
     // Create triangle geometry
     const geometry = new THREE.BufferGeometry();
     const vertices = new Float32Array([
-      worldPos1.x, 1, worldPos1.z, // Slightly above ground
-      worldPos2.x, 1, worldPos2.z,
-      worldPos3.x, 1, worldPos3.z
+      worldPos1.x, 5, worldPos1.z, // Slightly above ground
+      worldPos2.x, 5, worldPos2.z,
+      worldPos3.x, 5, worldPos3.z
     ]);
     
     geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
@@ -527,8 +555,9 @@ export class ThreeJSManager {
       ? new THREE.Mesh(geometry, material)
       : new THREE.Line(geometry, material);
     
-    // Add to scene
+    // Add to scene and track
     this.scene.add(mesh);
+    this.sceneObjects.push(mesh);
   }
   
   /**
@@ -537,9 +566,11 @@ export class ThreeJSManager {
   drawText(x: number, y: number, text: string, size: number, r: number, g: number, b: number): void {
     if (!this.textContext) return;
     
-    // Convert 2D game coordinates to screen coordinates
+    // Convert 2D game coordinates to 3D world coordinates
     const worldPos = this.gameToWorldCoords(x, y);
-    const vector = new THREE.Vector3(worldPos.x, 10, worldPos.z); // Slightly above ground
+    
+    // Create a vector at the position, but elevated above the object
+    const vector = new THREE.Vector3(worldPos.x, 30, worldPos.z);
     
     // Project 3D position to 2D screen position
     vector.project(this.camera);
@@ -548,10 +579,24 @@ export class ThreeJSManager {
     const screenX = (vector.x * 0.5 + 0.5) * this.textCanvas.width;
     const screenY = (-vector.y * 0.5 + 0.5) * this.textCanvas.height;
     
-    // Draw text on the 2D canvas
-    this.textContext.font = `${size}px sans-serif`;
+    // Draw text on the 2D canvas with a slight shadow for better visibility
+    this.textContext.font = `${size}px Arial, sans-serif`;
+    this.textContext.textAlign = 'center';
+    
+    // Add shadow for better visibility
+    this.textContext.shadowColor = 'rgba(0, 0, 0, 0.7)';
+    this.textContext.shadowBlur = 4;
+    this.textContext.shadowOffsetX = 2;
+    this.textContext.shadowOffsetY = 2;
+    
     this.textContext.fillStyle = `rgb(${r}, ${g}, ${b})`;
     this.textContext.fillText(text, screenX, screenY);
+    
+    // Reset shadow
+    this.textContext.shadowColor = 'transparent';
+    this.textContext.shadowBlur = 0;
+    this.textContext.shadowOffsetX = 0;
+    this.textContext.shadowOffsetY = 0;
   }
   
   /**

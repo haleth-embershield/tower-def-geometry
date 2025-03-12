@@ -45,12 +45,17 @@ h3 {
 .canvas-container {
   margin: 20px auto;
   position: relative;
-}
-
-canvas {
+  width: 800px;
+  height: 600px;
   border: 2px solid var(--primary-color);
   box-shadow: 0 0 20px var(--primary-color);
   background-color: #111;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .controls {

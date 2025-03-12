@@ -71,13 +71,7 @@ export class WasmLoader {
           },
           // Rendering functions - updated for ThreeJS
           clearCanvas: () => {
-            // Remove all tracked objects from the scene
-            this.sceneObjects.forEach(obj => {
-              this.gameApp.renderer.getScene().remove(obj);
-            });
-            this.sceneObjects = [];
-            
-            // Clear the text canvas
+            // Clear the scene using the renderer's clear method
             this.gameApp.renderer.clear();
           },
           drawRect: (x: number, y: number, width: number, height: number, r: number, g: number, b: number) => {
@@ -85,7 +79,7 @@ export class WasmLoader {
             this.gameApp.renderer.drawRect(x, y, width, height, r, g, b);
           },
           drawCircle: (x: number, y: number, radius: number, r: number, g: number, b: number, fill: boolean) => {
-            // Use ThreeJS to draw a circle (cylinder in 3D)
+            // Use ThreeJS to draw a circle (sphere in 3D)
             this.gameApp.renderer.drawCircle(x, y, radius, r, g, b, fill);
           },
           drawLine: (x1: number, y1: number, x2: number, y2: number, thickness: number, r: number, g: number, b: number) => {

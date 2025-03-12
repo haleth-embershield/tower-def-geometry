@@ -119,6 +119,8 @@ zig build deploy
 
 ## Example Implementation
 
+***NOTE: THREEJS FOR RENDERING ONLY, NO GAME LOGIC OR GAME STATE***
+
 This template includes a minimal tower defense game implementation:
 
 - Zig backend handles game logic, physics, and state management
@@ -152,7 +154,3 @@ A stretch goal for this template is to incorporate WebGPU for hardware-accelerat
 ## Contributing
 
 Contributions to improve this template are welcome! Please feel free to submit issues or pull requests.
-
-## License
-
-MIT
