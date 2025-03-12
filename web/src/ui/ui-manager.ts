@@ -1,7 +1,7 @@
 // UI manager for handling user interface elements and interactions
 
 interface GameApp {
-  canvas: any;
+  renderer: any;
   wasmLoader: any;
   audio: any;
   logger: {
@@ -141,7 +141,7 @@ export class UIManager {
     this.gameApp.wasmLoader.selectTowerType(towerType);
     
     // Update canvas manager
-    this.gameApp.canvas.setSelectedTowerType(towerType);
+    this.gameApp.renderer.setSelectedTowerType(towerType);
   }
 
   /**

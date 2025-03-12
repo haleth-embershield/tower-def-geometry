@@ -3,7 +3,7 @@
 import { AudioManager } from './audio/audio-manager';
 import { WasmLoader } from './wasm/wasm-loader';
 import { UIManager } from './ui/ui-manager';
-import { CanvasManager } from './renderer/canvas-manager';
+import { ThreeJSManager } from './renderer/threejs-manager';
 
 // Logger implementation
 class Logger {
@@ -55,7 +55,7 @@ class Logger {
 // Main application class
 class GameApplication {
   // Components
-  public canvas: CanvasManager;
+  public renderer: ThreeJSManager;
   public audio: AudioManager;
   public ui: UIManager;
   public wasmLoader: WasmLoader;
@@ -71,7 +71,7 @@ class GameApplication {
     this.logger = new Logger();
     
     // Initialize components
-    this.canvas = new CanvasManager('canvas');
+    this.renderer = new ThreeJSManager('canvas-container');
     this.audio = new AudioManager(this.logger);
     this.ui = new UIManager(this);
     this.wasmLoader = new WasmLoader(this, this.logger);
@@ -97,7 +97,7 @@ class GameApplication {
       await this.audio.loadSounds();
       
       // Finally load WASM module
-      const { width, height } = this.canvas.initialize();
+      const { width, height } = this.renderer.initialize();
       await this.wasmLoader.loadWasm();
       await this.wasmLoader.initializeGame(width, height);
       
@@ -170,14 +170,17 @@ class GameApplication {
       this.wasmLoader.updateGame(deltaTime);
       
       // Draw tower preview if hovering
-      const { x, y } = this.canvas.getHoverPosition();
+      const { x, y } = this.renderer.getHoverPosition();
       if (x >= 0 && y >= 0) {
         this.wasmLoader.canPlaceTower(x, y).then(canPlace => {
           this.wasmLoader.getTowerRange().then(range => {
-            this.canvas.drawTowerPreview(x, y, canPlace, range);
+            this.renderer.drawTowerPreview(x, y, canPlace, range);
           });
         });
       }
+      
+      // Render the scene
+      this.renderer.render();
       
       // Continue animation loop
       this.animationFrameId = requestAnimationFrame(this.animate);

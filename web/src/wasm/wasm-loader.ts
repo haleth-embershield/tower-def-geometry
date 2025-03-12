@@ -1,5 +1,6 @@
 // TypeScript implementation of the WASM loader
 import type { WasmModule } from "../../types/wasm.d.ts";
+import * as THREE from 'three';
 
 // Define logger type for compatibility
 interface Logger {
@@ -12,6 +13,7 @@ export class WasmLoader {
   private wasmModule: WasmModule | null = null;
   private logger: Logger;
   private gameApp: any; // Reference to the main game application
+  private sceneObjects: THREE.Object3D[] = []; // Track objects added to the scene for cleanup
 
   constructor(gameApp: any, logger?: Logger) {
     this.gameApp = gameApp;
@@ -67,73 +69,38 @@ export class WasmLoader {
             this.logger.log("Playing enemy hit sound (from WASM callback)");
             this.playWasmSound('enemyHit');
           },
-          // Canvas rendering functions
+          // Rendering functions - updated for ThreeJS
           clearCanvas: () => {
-            const ctx = this.gameApp.canvas.getContext();
-            const { width, height } = this.gameApp.canvas.getDimensions();
-            if (ctx) {
-              ctx.clearRect(0, 0, width, height);
-            }
+            // Remove all tracked objects from the scene
+            this.sceneObjects.forEach(obj => {
+              this.gameApp.renderer.getScene().remove(obj);
+            });
+            this.sceneObjects = [];
+            
+            // Clear the text canvas
+            this.gameApp.renderer.clear();
           },
           drawRect: (x: number, y: number, width: number, height: number, r: number, g: number, b: number) => {
-            const ctx = this.gameApp.canvas.getContext();
-            if (ctx) {
-              ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-              ctx.fillRect(x, y, width, height);
-            }
+            // Use ThreeJS to draw a rectangle (box in 3D)
+            this.gameApp.renderer.drawRect(x, y, width, height, r, g, b);
           },
           drawCircle: (x: number, y: number, radius: number, r: number, g: number, b: number, fill: boolean) => {
-            const ctx = this.gameApp.canvas.getContext();
-            if (ctx) {
-              ctx.beginPath();
-              ctx.arc(x, y, radius, 0, Math.PI * 2);
-              if (fill) {
-                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-                ctx.fill();
-              } else {
-                ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
-                ctx.stroke();
-              }
-            }
+            // Use ThreeJS to draw a circle (cylinder in 3D)
+            this.gameApp.renderer.drawCircle(x, y, radius, r, g, b, fill);
           },
           drawLine: (x1: number, y1: number, x2: number, y2: number, thickness: number, r: number, g: number, b: number) => {
-            const ctx = this.gameApp.canvas.getContext();
-            if (ctx) {
-              ctx.beginPath();
-              ctx.moveTo(x1, y1);
-              ctx.lineTo(x2, y2);
-              ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
-              ctx.lineWidth = thickness;
-              ctx.stroke();
-            }
+            // Use ThreeJS to draw a line
+            this.gameApp.renderer.drawLine(x1, y1, x2, y2, thickness, r, g, b);
           },
           drawTriangle: (x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, r: number, g: number, b: number, fill: boolean) => {
-            const ctx = this.gameApp.canvas.getContext();
-            if (ctx) {
-              ctx.beginPath();
-              ctx.moveTo(x1, y1);
-              ctx.lineTo(x2, y2);
-              ctx.lineTo(x3, y3);
-              ctx.closePath();
-              if (fill) {
-                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-                ctx.fill();
-              } else {
-                ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
-                ctx.stroke();
-              }
-            }
+            // Use ThreeJS to draw a triangle
+            this.gameApp.renderer.drawTriangle(x1, y1, x2, y2, x3, y3, r, g, b, fill);
           },
           drawText: (x: number, y: number, text_ptr: number, text_len: number, size: number, r: number, g: number, b: number) => {
-            const ctx = this.gameApp.canvas.getContext();
-            if (!ctx) return;
-            
             try {
               // We need to wait until the WASM module is instantiated to access memory
               if (!this.wasmModule || !this.wasmModule.memory) {
-                // Draw a placeholder rectangle until WASM is fully loaded
-                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-                ctx.fillRect(x, y - size, size * 5, size);
+                // Can't draw text without WASM memory
                 return;
               }
               
@@ -144,16 +111,10 @@ export class WasmLoader {
               const textBytes = memoryView.slice(text_ptr, text_ptr + text_len);
               const text = new TextDecoder().decode(textBytes);
               
-              // Draw the text
-              ctx.font = `${size}px sans-serif`;
-              ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-              ctx.fillText(text, x, y);
+              // Draw the text using the ThreeJS manager's text canvas
+              this.gameApp.renderer.drawText(x, y, text, size, r, g, b);
             } catch (error) {
               this.logger.error(`Error drawing text: ${error}`);
-              
-              // Fallback to drawing a placeholder rectangle
-              ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-              ctx.fillRect(x, y - size, size * 5, size);
             }
           }
         }
