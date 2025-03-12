@@ -35,6 +35,12 @@
             <p id="status">WASM module loading...</p>
         </div>
         
+        <div class="game-stats">
+            <span id="money">$100</span>
+            <span id="score">Score: 0</span>
+            <span id="wave">Wave: 1</span>
+        </div>
+        
         <div class="controls-info">
             <h3>Controls</h3>
             <ul>
@@ -51,8 +57,16 @@
         <div class="log-container" id="log-container">
             <div class="log-entry">Console output will appear here...</div>
         </div>
+        
+        <div id="message" class="message"></div>
+        
+        <div id="game-over" class="game-over">
+            <h2 id="game-over-title">Game Over</h2>
+            <p id="game-over-score">Final Score: 0</p>
+            <button id="restart-button">Play Again</button>
+        </div>
     </div>
 
     <script type="module" src="js/main.js"></script>
 </body>
-</html>
+</html> 
