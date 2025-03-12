@@ -44,6 +44,7 @@ This template demonstrates a lightweight but powerful architecture:
 project-root/
 ├── src/                      # Zig source code
 ├── build.zig                 # Zig build system configuration
+      assets were moved to web/ but we still have an assets/ folder for the game? should this move to src/?
 ├── assets/                   # Static assets
 ├── web/                      # Frontend code
 │   ├── src/                  # TypeScript source files

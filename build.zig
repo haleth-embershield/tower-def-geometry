@@ -28,12 +28,15 @@ pub fn build(b: *std.Build) void {
     // Install in the output directory
     b.installArtifact(exe);
 
-    // Create necessary directories
+    // Create necessary directories - this needs to happen first
     const make_dirs = b.addSystemCommand(if (builtin.os.tag == .windows)
         &[_][]const u8{ "cmd", "/c", "if", "not", "exist", "dist", "mkdir", "dist" }
     else
         &[_][]const u8{ "mkdir", "-p", "dist" });
-    make_dirs.step.dependOn(b.getInstallStep());
+
+    // Make sure directory creation happens before any other steps
+    const install_step = b.getInstallStep();
+    install_step.dependOn(&make_dirs.step);
 
     // Add TypeScript build step using Bun
     const bun_build_cmd = if (builtin.os.tag == .windows)
@@ -46,7 +49,7 @@ pub fn build(b: *std.Build) void {
 
     // Create a step to copy the WASM file to the dist directory
     const copy_wasm = b.addInstallFile(exe.getEmittedBin(), "../dist/towerd.wasm");
-    copy_wasm.step.dependOn(b.getInstallStep());
+    copy_wasm.step.dependOn(install_step);
     copy_wasm.step.dependOn(&build_ts.step);
 
     // Create a step to copy all files from the assets directory to the dist directory
@@ -79,9 +82,9 @@ pub fn build(b: *std.Build) void {
 
     // Add a run step to start Bun's development server
     const bun_serve_cmd = if (builtin.os.tag == .windows)
-        &[_][]const u8{ "cmd", "/c", "bun", "run", "dev" }
+        &[_][]const u8{ "cmd", "/c", "bun", "run", "http" }
     else
-        &[_][]const u8{ "bun", "run", "dev" };
+        &[_][]const u8{ "bun", "run", "http" };
 
     const run_cmd = b.addSystemCommand(bun_serve_cmd);
     run_cmd.step.dependOn(&copy_wasm.step);
