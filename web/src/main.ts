@@ -41,6 +41,14 @@ class Logger {
     
     // Auto-scroll to bottom
     this.logContainer.scrollTop = this.logContainer.scrollHeight;
+    
+    // Limit number of entries (like in the original)
+    while (this.logContainer.children.length > 100) {
+      const firstChild = this.logContainer.firstChild;
+      if (firstChild) {
+        this.logContainer.removeChild(firstChild);
+      }
+    }
   }
 }
 
@@ -79,68 +87,60 @@ class GameApplication {
   // Initialize the application
   async init(): Promise<void> {
     try {
-      // Update status
-      this.updateStatus('Initializing game...');
-      
-      // Initialize the canvas
-      const { width, height } = this.canvas.initialize();
-      
-      // Initialize the WASM module
-      await this.wasmLoader.initializeGame(width, height);
-      
-      // Load audio assets
-      await this.audio.loadSounds();
-      
-      // Initialize UI
+      // First initialize UI
       this.ui.initialize();
       
       // Update status
-      this.updateStatus('Game ready!');
+      this.updateStatus('Loading audio and WASM...');
       
-      // Add event listeners for UI buttons
-      this.setupEventListeners();
+      // Then load audio files
+      await this.audio.loadSounds();
+      
+      // Finally load WASM module
+      const { width, height } = this.canvas.initialize();
+      await this.wasmLoader.loadWasm();
+      await this.wasmLoader.initializeGame(width, height);
+      
+      // Update status
+      this.updateStatus('Game ready');
     } catch (error) {
-      this.logger.error(`Initialization failed: ${error}`);
-      this.updateStatus('Failed to initialize game. Check console for details.');
+      this.logger.error(`Initialization error: ${error}`);
+      this.updateStatus(`Error: ${error}`);
     }
   }
   
   // Start the game
   startGame(): void {
-    // Reset the game
+    if (!this.wasmLoader.isLoaded()) return;
+    
+    // Reset game state if needed
     this.wasmLoader.resetGame();
     
-    // Start animation loop if not running
-    if (this.animationFrameId === null) {
+    this.isPaused = false;
+    this.updateStatus('Game started');
+    
+    // Start animation loop if not already running
+    if (!this.animationFrameId) {
       this.startAnimationLoop();
     }
-    
-    // Play background music
-    this.audio.playBackgroundMusic();
-    
-    this.isPaused = false;
-    this.updateStatus('Game started!');
   }
   
   // Toggle pause state
   togglePause(): void {
-    this.isPaused = !this.isPaused;
+    if (!this.wasmLoader.isLoaded()) return;
     
-    if (this.isPaused) {
-      this.updateStatus('Game paused');
-      if (this.animationFrameId !== null) {
-        cancelAnimationFrame(this.animationFrameId);
-        this.animationFrameId = null;
-      }
-    } else {
-      this.updateStatus('Game resumed');
-      if (this.animationFrameId === null) {
-        this.startAnimationLoop();
-      }
+    this.isPaused = !this.isPaused;
+    this.updateStatus(this.isPaused ? 'Game paused' : 'Game resumed');
+    
+    if (!this.isPaused && !this.animationFrameId) {
+      this.startAnimationLoop();
+    } else if (this.isPaused && this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
   }
   
-  // Start the animation loop
+  // Start animation loop
   private startAnimationLoop(): void {
     this.lastTimestamp = performance.now();
     this.animationFrameId = requestAnimationFrame(this.animate);
@@ -148,28 +148,35 @@ class GameApplication {
   
   // Animation frame handler
   private animate(timestamp: number): void {
+    // If paused, don't request next frame
+    if (this.isPaused) {
+      this.animationFrameId = null;
+      return;
+    }
+    
     // Calculate delta time in seconds
     const deltaTime = (timestamp - this.lastTimestamp) / 1000;
     this.lastTimestamp = timestamp;
-    
-    // Skip if delta time is too large (e.g., tab was inactive)
-    if (deltaTime > 0.1) {
-      this.animationFrameId = requestAnimationFrame(this.animate);
-      return;
-    }
     
     try {
       // Update game state through WASM
       this.wasmLoader.updateGame(deltaTime);
       
-      // Render the frame
-      this.canvas.render();
+      // Draw tower preview if hovering
+      const { x, y } = this.canvas.getHoverPosition();
+      if (x >= 0 && y >= 0) {
+        this.wasmLoader.canPlaceTower(x, y).then(canPlace => {
+          this.wasmLoader.getTowerRange().then(range => {
+            this.canvas.drawTowerPreview(x, y, canPlace, range);
+          });
+        });
+      }
       
       // Continue animation loop
       this.animationFrameId = requestAnimationFrame(this.animate);
     } catch (error) {
       this.logger.error(`Animation error: ${error}`);
-      this.updateStatus('Game error occurred. Check console for details.');
+      this.updateStatus('Game error occurred');
       
       // Stop animation loop on error
       if (this.animationFrameId !== null) {
@@ -181,73 +188,28 @@ class GameApplication {
   
   // Handle keyboard events
   private handleKeyDown(event: KeyboardEvent): void {
-    switch (event.key) {
-      case ' ':
-        // Space bar toggles pause
-        this.togglePause();
+    if (!this.wasmLoader.isLoaded()) return;
+    
+    switch(event.key) {
+      case '1': 
+        this.ui.selectTower(1);
         break;
-      case 'Escape':
-        // Esc deselects the current tower
+      case '2': 
+        this.ui.selectTower(2);
+        break;
+      case '3': 
+        this.ui.selectTower(3);
+        break;
+      case '4': 
+        this.ui.selectTower(4);
+        break;
+      case 'Escape': 
         this.ui.deselectTowers();
         break;
-      case '1': case '2': case '3': case '4':
-        // Number keys select tower types
-        const towerType = parseInt(event.key) - 1;
-        this.ui.selectTower(towerType);
+      case ' ': // Space bar
+        event.preventDefault();
+        this.togglePause();
         break;
-    }
-  }
-  
-  // Set up UI event listeners
-  private setupEventListeners(): void {
-    // Start button
-    const startButton = document.getElementById('start-button');
-    if (startButton) {
-      startButton.addEventListener('click', () => this.startGame());
-    }
-    
-    // Pause button
-    const pauseButton = document.getElementById('pause-button');
-    if (pauseButton) {
-      pauseButton.addEventListener('click', () => this.togglePause());
-    }
-    
-    // Tower selection buttons
-    const towerButtons = document.querySelectorAll('.tower-button');
-    towerButtons.forEach((button, index) => {
-      button.addEventListener('click', () => this.ui.selectTower(index));
-    });
-    
-    // Canvas click for placing towers
-    const canvas = document.getElementById('canvas');
-    if (canvas) {
-      canvas.addEventListener('click', async (event) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        
-        // Check if we can place a tower here
-        const canPlace = await this.wasmLoader.canPlaceTower(x, y);
-        if (canPlace) {
-          await this.wasmLoader.handleClick(x, y);
-          this.audio.playSound('place');
-        } else {
-          this.audio.playSound('error');
-        }
-      });
-    }
-    
-    // Log toggle
-    const logToggle = document.getElementById('log-toggle');
-    const logContainer = document.getElementById('log-container');
-    if (logToggle && logContainer) {
-      logToggle.addEventListener('click', () => {
-        logContainer.classList.toggle('expanded');
-        const toggleIcon = logToggle.querySelector('.log-toggle-icon');
-        if (toggleIcon) {
-          toggleIcon.textContent = logContainer.classList.contains('expanded') ? '▲' : '▼';
-        }
-      });
     }
   }
   
@@ -257,14 +219,14 @@ class GameApplication {
     if (statusElement) {
       statusElement.textContent = message;
     }
-    this.logger.log(message);
   }
 }
 
-// Initialize and start the application when the DOM is loaded
-window.addEventListener('DOMContentLoaded', () => {
+// Initialize the application when the DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
   const app = new GameApplication();
-  app.init().catch(error => {
-    console.error('Failed to initialize application:', error);
-  });
+  app.init();
+  
+  // Make app globally accessible for debugging
+  (window as any).gameApp = app;
 }); 

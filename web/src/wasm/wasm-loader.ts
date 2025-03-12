@@ -19,6 +19,14 @@ export class WasmLoader {
   }
 
   /**
+   * Check if the WASM module has been loaded
+   * @returns True if the WASM module is loaded, false otherwise
+   */
+  isLoaded(): boolean {
+    return this.wasmModule !== null;
+  }
+
+  /**
    * Load and instantiate the WebAssembly module
    * @returns Promise resolving to the initialized WASM module
    */

@@ -29,13 +29,19 @@ export class AudioManager {
 
       // Define sound effects to load
       const soundEffects = {
+        'enemyHit': 'audio/enemy-hit.ogg',
+        'levelComplete': 'audio/level-complete.ogg',
+        'levelFail': 'audio/level-fail.ogg',
+        'towerShoot': 'audio/tower-shoot.ogg',
+        'enemyExplosion': 'audio/enemy-explosion.ogg',
         'place': 'audio/place.mp3',
         'shoot': 'audio/shoot.mp3',
         'hit': 'audio/hit.mp3',
         'error': 'audio/error.mp3',
         'wave': 'audio/wave.mp3',
         'victory': 'audio/victory.mp3',
-        'defeat': 'audio/defeat.mp3'
+        'defeat': 'audio/defeat.mp3',
+        'select': 'audio/select.mp3'
       };
 
       // Load each sound effect
@@ -44,6 +50,7 @@ export class AudioManager {
           const audio = new Audio(path);
           await this.preloadAudio(audio);
           this.sounds[name] = audio;
+          this.logger.log(`Loaded audio: ${name}`);
         } catch (err) {
           this.logger.warn(`Failed to load sound: ${name} (${path})`);
         }
@@ -61,7 +68,7 @@ export class AudioManager {
 
       // Wait for all sounds to load
       await Promise.all(promises);
-      this.logger.log('Audio assets loaded successfully');
+      this.logger.log('All audio files loaded successfully');
     } catch (error) {
       this.logger.error(`Error loading audio: ${error}`);
       throw error;
@@ -131,5 +138,42 @@ export class AudioManager {
     }
     
     return this.isMuted;
+  }
+
+  // Specific sound methods to match the original API
+  
+  /**
+   * Play enemy hit sound
+   */
+  playEnemyHitSound(): void {
+    this.playSound('enemyHit');
+  }
+  
+  /**
+   * Play level complete sound
+   */
+  playLevelCompleteSound(): void {
+    this.playSound('levelComplete');
+  }
+  
+  /**
+   * Play level fail sound
+   */
+  playLevelFailSound(): void {
+    this.playSound('levelFail');
+  }
+  
+  /**
+   * Play tower shoot sound
+   */
+  playTowerShootSound(): void {
+    this.playSound('towerShoot');
+  }
+  
+  /**
+   * Play enemy explosion sound
+   */
+  playEnemyExplosionSound(): void {
+    this.playSound('enemyExplosion');
   }
 } 

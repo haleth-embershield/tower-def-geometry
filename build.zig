@@ -52,14 +52,6 @@ pub fn build(b: *std.Build) void {
     copy_wasm.step.dependOn(install_step);
     copy_wasm.step.dependOn(&build_ts.step);
 
-    // Create a step to copy all files from the assets directory to the dist directory
-    const copy_assets = b.addInstallDirectory(.{
-        .source_dir = b.path("assets"),
-        .install_dir = .{ .custom = "../dist" },
-        .install_subdir = "",
-    });
-    copy_assets.step.dependOn(&make_dirs.step);
-
     // Create a step to copy all files from web/public to the dist directory
     const copy_public = b.addInstallDirectory(.{
         .source_dir = b.path("web/public"),
@@ -88,7 +80,6 @@ pub fn build(b: *std.Build) void {
 
     const run_cmd = b.addSystemCommand(bun_serve_cmd);
     run_cmd.step.dependOn(&copy_wasm.step);
-    run_cmd.step.dependOn(&copy_assets.step);
     run_cmd.step.dependOn(&copy_public.step);
     run_cmd.step.dependOn(&copy_html.step);
     run_cmd.step.dependOn(&copy_css.step);
@@ -99,7 +90,6 @@ pub fn build(b: *std.Build) void {
     // Add a deploy step that only copies the files without starting the server
     const deploy_step = b.step("deploy", "Build and copy files to dist directory");
     deploy_step.dependOn(&copy_wasm.step);
-    deploy_step.dependOn(&copy_assets.step);
     deploy_step.dependOn(&copy_public.step);
     deploy_step.dependOn(&copy_html.step);
     deploy_step.dependOn(&copy_css.step);

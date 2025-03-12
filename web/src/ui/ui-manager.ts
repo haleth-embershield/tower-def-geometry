@@ -9,15 +9,29 @@ interface GameApp {
     error(message: string): void;
     warn(message: string): void;
   };
+  startGame(): void;
+  togglePause(): void;
 }
 
 export class UIManager {
   private gameApp: GameApp;
   private selectedTowerType: number = 0;
-  private towerButtons: NodeListOf<HTMLElement> | null = null;
-  private money: number = 100;
-  private score: number = 0;
-  private wave: number = 0;
+  private startButton: HTMLElement | null = null;
+  private pauseButton: HTMLElement | null = null;
+  private towerButtons: {
+    line: HTMLElement | null;
+    triangle: HTMLElement | null;
+    square: HTMLElement | null;
+    pentagon: HTMLElement | null;
+  } = {
+    line: null,
+    triangle: null,
+    square: null,
+    pentagon: null
+  };
+  private logContainer: HTMLElement | null = null;
+  private logToggle: HTMLElement | null = null;
+  private logBuffer: string[] = [];
 
   constructor(gameApp: GameApp) {
     this.gameApp = gameApp;
@@ -27,86 +41,169 @@ export class UIManager {
    * Initialize the UI elements
    */
   initialize(): void {
-    // Get tower buttons
-    this.towerButtons = document.querySelectorAll('.tower-button');
+    // Get UI elements
+    this.startButton = document.getElementById('start-button');
+    this.pauseButton = document.getElementById('pause-button');
+    this.logContainer = document.getElementById('log-container');
+    this.logToggle = document.getElementById('log-toggle');
     
-    // Set up event listeners for tower buttons
-    this.towerButtons.forEach((button, index) => {
-      button.addEventListener('click', () => this.selectTower(index));
-    });
+    // Tower buttons
+    this.towerButtons = {
+      line: document.getElementById('tower-line'),
+      triangle: document.getElementById('tower-triangle'),
+      square: document.getElementById('tower-square'),
+      pentagon: document.getElementById('tower-pentagon')
+    };
     
-    // Initialize UI displays
-    this.updateMoneyDisplay();
-    this.updateScoreDisplay();
-    this.updateWaveDisplay();
+    // Add event listeners
+    if (this.startButton) {
+      this.startButton.addEventListener('click', () => this.gameApp.startGame());
+    }
+    
+    if (this.pauseButton) {
+      this.pauseButton.addEventListener('click', () => this.gameApp.togglePause());
+    }
+    
+    // Tower selection buttons
+    if (this.towerButtons.line) {
+      this.towerButtons.line.addEventListener('click', () => this.selectTower(1));
+    }
+    
+    if (this.towerButtons.triangle) {
+      this.towerButtons.triangle.addEventListener('click', () => this.selectTower(2));
+    }
+    
+    if (this.towerButtons.square) {
+      this.towerButtons.square.addEventListener('click', () => this.selectTower(3));
+    }
+    
+    if (this.towerButtons.pentagon) {
+      this.towerButtons.pentagon.addEventListener('click', () => this.selectTower(4));
+    }
+    
+    // Log toggle
+    if (this.logToggle) {
+      this.logToggle.addEventListener('click', () => this.toggleLog());
+    }
+    
+    // Process any buffered log messages
+    this.processLogBuffer();
     
     this.gameApp.logger.log('UI initialized');
   }
 
   /**
-   * Select a tower type
+   * Process any log messages that were received before UI was ready
    */
-  selectTower(towerType: number): void {
-    // Deselect previous tower
-    if (this.towerButtons) {
-      this.towerButtons.forEach(button => {
-        button.classList.remove('active');
-      });
-    }
-    
-    // Select new tower if valid
-    if (towerType > 0 && towerType <= 4) {
-      this.selectedTowerType = towerType;
+  private processLogBuffer(): void {
+    if (this.logBuffer.length > 0 && this.logContainer) {
+      // Clear the initial placeholder message
+      this.logContainer.innerHTML = '';
       
-      // Update UI
-      if (this.towerButtons && this.towerButtons[towerType - 1]) {
-        this.towerButtons[towerType - 1].classList.add('active');
+      // Add all buffered messages
+      for (const message of this.logBuffer) {
+        this.addLogEntryDirect(message);
       }
       
-      // Update canvas manager
-      this.gameApp.canvas.setSelectedTowerType(towerType);
-      
-      // Update WASM module
-      this.gameApp.wasmLoader.selectTowerType(towerType - 1);
-      
-      // Play selection sound
-      this.gameApp.audio.playSound('select');
-    } else {
-      this.deselectTowers();
+      // Clear the buffer
+      this.logBuffer = [];
     }
+  }
+
+  /**
+   * Select tower type
+   */
+  selectTower(towerType: number): void {
+    // Update UI
+    Object.values(this.towerButtons).forEach(btn => {
+      if (btn) btn.classList.remove('active');
+    });
+    
+    // Set active class based on selection
+    switch(towerType) {
+      case 1: 
+        if (this.towerButtons.line) this.towerButtons.line.classList.add('active'); 
+        break;
+      case 2: 
+        if (this.towerButtons.triangle) this.towerButtons.triangle.classList.add('active'); 
+        break;
+      case 3: 
+        if (this.towerButtons.square) this.towerButtons.square.classList.add('active'); 
+        break;
+      case 4: 
+        if (this.towerButtons.pentagon) this.towerButtons.pentagon.classList.add('active'); 
+        break;
+      default: 
+        break; // For ESC key (deselect)
+    }
+    
+    // Call WASM function to set selected tower type
+    this.gameApp.wasmLoader.selectTowerType(towerType);
+    
+    // Update canvas manager
+    this.gameApp.canvas.setSelectedTowerType(towerType);
   }
 
   /**
    * Deselect all towers
    */
   deselectTowers(): void {
-    this.selectedTowerType = 0;
-    
-    // Update UI
-    if (this.towerButtons) {
-      this.towerButtons.forEach(button => {
-        button.classList.remove('active');
-      });
+    this.selectTower(0);
+  }
+
+  /**
+   * Add log entry to the log container
+   */
+  addLogEntry(message: string): void {
+    if (!this.logContainer) {
+      // If log container isn't ready yet, buffer the message
+      this.logBuffer.push(message);
+      return;
     }
     
-    // Update canvas manager
-    this.gameApp.canvas.setSelectedTowerType(0);
+    this.addLogEntryDirect(message);
+  }
+
+  /**
+   * Directly add a log entry to the container (no buffering)
+   */
+  private addLogEntryDirect(message: string): void {
+    if (!this.logContainer) return;
     
-    // Update WASM module
-    this.gameApp.wasmLoader.selectTowerType(-1);
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.textContent = message;
+    this.logContainer.appendChild(entry);
+    
+    // Auto-scroll to bottom
+    this.logContainer.scrollTop = this.logContainer.scrollHeight;
+    
+    // Limit number of entries
+    while (this.logContainer.children.length > 100) {
+      const firstChild = this.logContainer.firstChild;
+      if (firstChild) {
+        this.logContainer.removeChild(firstChild);
+      }
+    }
+  }
+
+  /**
+   * Toggle log visibility
+   */
+  private toggleLog(): void {
+    if (!this.logContainer || !this.logToggle) return;
+    
+    this.logContainer.classList.toggle('hidden');
+    this.logToggle.classList.toggle('collapsed');
   }
 
   /**
    * Update the money display
    */
   updateMoneyDisplay(newMoney?: number): void {
-    if (newMoney !== undefined) {
-      this.money = newMoney;
-    }
-    
     const moneyElement = document.getElementById('money');
-    if (moneyElement) {
-      moneyElement.textContent = `$${this.money}`;
+    if (moneyElement && newMoney !== undefined) {
+      moneyElement.textContent = `$${newMoney}`;
     }
   }
 
@@ -114,13 +211,9 @@ export class UIManager {
    * Update the score display
    */
   updateScoreDisplay(newScore?: number): void {
-    if (newScore !== undefined) {
-      this.score = newScore;
-    }
-    
     const scoreElement = document.getElementById('score');
-    if (scoreElement) {
-      scoreElement.textContent = `Score: ${this.score}`;
+    if (scoreElement && newScore !== undefined) {
+      scoreElement.textContent = `Score: ${newScore}`;
     }
   }
 
@@ -128,13 +221,9 @@ export class UIManager {
    * Update the wave display
    */
   updateWaveDisplay(newWave?: number): void {
-    if (newWave !== undefined) {
-      this.wave = newWave;
-    }
-    
     const waveElement = document.getElementById('wave');
-    if (waveElement) {
-      waveElement.textContent = `Wave: ${this.wave}`;
+    if (waveElement && newWave !== undefined) {
+      waveElement.textContent = `Wave: ${newWave}`;
     }
   }
 

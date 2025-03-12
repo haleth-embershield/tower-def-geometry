@@ -43,9 +43,8 @@ This template demonstrates a lightweight but powerful architecture:
 ```
 project-root/
 ├── src/                      # Zig source code
+│   └── assets/              # Game assets bundled into WASM (sprites, levels, etc)
 ├── build.zig                 # Zig build system configuration
-      assets were moved to web/ but we still have an assets/ folder for the game? should this move to src/?
-├── assets/                   # Static assets
 ├── web/                      # Frontend code
 │   ├── src/                  # TypeScript source files
 │   │   ├── main.ts           # Main entry point
@@ -57,7 +56,7 @@ project-root/
 │   ├── types/                # TypeScript declaration files
 │   │   └── wasm.d.ts         # Type definitions for WASM functions
 │   ├── styles/               # CSS files
-│   ├── public/               # Static assets that don't need processing
+│   ├── public/               # Static web assets (images, fonts, sounds, etc)
 │   └── index.html            # Main HTML file
 ├── dist/                     # Output directory for built files
 ├── package.json              # Bun dependencies and scripts
