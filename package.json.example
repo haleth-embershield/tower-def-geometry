@@ -1,0 +1,22 @@
+{
+  "name": "tower-def-geometry",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Neon Geometry Tower Defense - WebAssembly game with TypeScript frontend",
+  "scripts": {
+    "dev": "bun run --watch web/src/main.ts --serve",
+    "build": "esbuild web/src/main.ts --bundle --minify --sourcemap --outdir=dist/js",
+    "check": "tsc --noEmit",
+    "lint": "eslint web/src/**/*.ts",
+    "format": "prettier --write web/src/**/*.ts",
+    "start": "zig build run"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.56.0",
+    "esbuild": "^0.20.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.3.3"
+  }
+} 
