@@ -243,8 +243,10 @@ class GameApplication {
     if (logToggle && logContainer) {
       logToggle.addEventListener('click', () => {
         logContainer.classList.toggle('expanded');
-        logToggle.querySelector('.log-toggle-icon')?.textContent = 
-          logContainer.classList.contains('expanded') ? '▲' : '▼';
+        const toggleIcon = logToggle.querySelector('.log-toggle-icon');
+        if (toggleIcon) {
+          toggleIcon.textContent = logContainer.classList.contains('expanded') ? '▲' : '▼';
+        }
       });
     }
   }

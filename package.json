@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Neon Geometry Tower Defense - WebAssembly game with TypeScript frontend",
   "scripts": {
-    "dev": "bun --hot web/src/main.ts --serve --port 8000",
+    "dev": "bun build web/src/main.ts --outdir dist/js --watch --serve --port 8000",
     "build": "bun build web/src/main.ts --outdir dist/js",
     "check": "tsc --noEmit",
     "lint": "eslint web/src/**/*.ts",
