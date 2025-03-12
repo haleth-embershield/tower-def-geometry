@@ -267,7 +267,10 @@ export class WasmLoader {
       
       // Create and play the audio
       const audio = new Audio(url);
-      audio.volume = 0.7;
+      
+      // Get the game audio volume from the AudioManager
+      audio.volume = this.gameApp.audio.getGameAudioVolume();
+      
       await audio.play();
       
       // Clean up the URL after the audio has played

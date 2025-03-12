@@ -31,6 +31,20 @@
             </div>
         </div>
         
+        <div class="audio-controls">
+            <h3>Audio Controls</h3>
+            <div class="volume-control">
+                <label for="background-volume">Background Music:</label>
+                <input type="range" id="background-volume" min="0" max="100" value="30" class="volume-slider">
+                <span id="background-volume-value">30%</span>
+            </div>
+            <div class="volume-control">
+                <label for="game-audio-volume">Game Audio:</label>
+                <input type="range" id="game-audio-volume" min="0" max="100" value="70" class="volume-slider">
+                <span id="game-audio-volume-value">70%</span>
+            </div>
+        </div>
+        
         <div class="status">
             <p id="status">WASM module loading...</p>
         </div>
