@@ -52,3 +52,44 @@ export fn canPlaceTower(x: f32, y: f32) bool {
 export fn getTowerRange() f32 {
     return game.getSelectedTowerRange();
 }
+
+// Re-export audio functions
+export fn getEnemyHitAudioPtr() [*]const u8 {
+    return audio.enemy_hit.ptr;
+}
+
+export fn getEnemyHitAudioLen() usize {
+    return audio.enemy_hit.len;
+}
+
+export fn getLevelCompleteAudioPtr() [*]const u8 {
+    return audio.level_complete.ptr;
+}
+
+export fn getLevelCompleteAudioLen() usize {
+    return audio.level_complete.len;
+}
+
+export fn getLevelFailAudioPtr() [*]const u8 {
+    return audio.level_fail.ptr;
+}
+
+export fn getLevelFailAudioLen() usize {
+    return audio.level_fail.len;
+}
+
+export fn getTowerShootAudioPtr() [*]const u8 {
+    return audio.tower_shoot.ptr;
+}
+
+export fn getTowerShootAudioLen() usize {
+    return audio.tower_shoot.len;
+}
+
+export fn getEnemyExplosionAudioPtr() [*]const u8 {
+    return audio.enemy_explosion.ptr;
+}
+
+export fn getEnemyExplosionAudioLen() usize {
+    return audio.enemy_explosion.len;
+}

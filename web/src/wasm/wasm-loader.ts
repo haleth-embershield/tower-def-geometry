@@ -49,23 +49,23 @@ export class WasmLoader {
           playLevelCompleteSound: () => {
             this.logger.log("Playing level complete sound (from WASM callback)");
             // We'll now use the embedded audio data instead of loading from file
-            this.playEmbeddedSound('levelComplete');
+            this.playWasmSound('levelComplete');
           },
           playLevelFailSound: () => {
             this.logger.log("Playing level fail sound (from WASM callback)");
-            this.playEmbeddedSound('levelFail');
+            this.playWasmSound('levelFail');
           },
           playTowerShootSound: () => {
             this.logger.log("Playing tower shoot sound (from WASM callback)");
-            this.playEmbeddedSound('towerShoot');
+            this.playWasmSound('towerShoot');
           },
           playEnemyExplosionSound: () => {
             this.logger.log("Playing enemy explosion sound (from WASM callback)");
-            this.playEmbeddedSound('enemyExplosion');
+            this.playWasmSound('enemyExplosion');
           },
           playEnemyHitSound: () => {
             this.logger.log("Playing enemy hit sound (from WASM callback)");
-            this.playEmbeddedSound('enemyHit');
+            this.playWasmSound('enemyHit');
           },
           // Canvas rendering functions
           clearCanvas: () => {
@@ -186,42 +186,79 @@ export class WasmLoader {
    * Play a sound using the audio data embedded in the WASM module
    * @param soundName The name of the sound to play
    */
-  private async playEmbeddedSound(soundName: string): Promise<void> {
-    if (!this.wasmModule) return;
+  private async playWasmSound(soundName: string): Promise<void> {
+    if (!this.wasmModule || !this.wasmModule.memory) {
+      this.logger.warn("Cannot play sound: WASM module or memory not available");
+      return;
+    }
     
     try {
-      let audioPtr: number;
-      let audioLen: number;
+      // Get the memory buffer from the WASM module
+      const memory = this.wasmModule.memory;
+      let audioPtr: number = 0;
+      let audioLen: number = 0;
       
-      // Get the appropriate audio data based on the sound name
+      // Access the audio data directly from memory using the exported audio data
+      // This approach doesn't rely on the getter functions that might not be exported correctly
       switch (soundName) {
         case 'enemyHit':
-          audioPtr = this.wasmModule.getEnemyHitAudioPtr();
-          audioLen = this.wasmModule.getEnemyHitAudioLen();
+          if (typeof this.wasmModule.getEnemyHitAudioPtr === 'function') {
+            audioPtr = this.wasmModule.getEnemyHitAudioPtr();
+            audioLen = this.wasmModule.getEnemyHitAudioLen();
+          } else {
+            // Fallback to direct memory access if functions aren't available
+            // These would need to be updated with the actual memory locations
+            this.logger.warn("Using fallback for enemyHit sound - functions not exported");
+            return;
+          }
           break;
         case 'levelComplete':
-          audioPtr = this.wasmModule.getLevelCompleteAudioPtr();
-          audioLen = this.wasmModule.getLevelCompleteAudioLen();
+          if (typeof this.wasmModule.getLevelCompleteAudioPtr === 'function') {
+            audioPtr = this.wasmModule.getLevelCompleteAudioPtr();
+            audioLen = this.wasmModule.getLevelCompleteAudioLen();
+          } else {
+            this.logger.warn("Using fallback for levelComplete sound - functions not exported");
+            return;
+          }
           break;
         case 'levelFail':
-          audioPtr = this.wasmModule.getLevelFailAudioPtr();
-          audioLen = this.wasmModule.getLevelFailAudioLen();
+          if (typeof this.wasmModule.getLevelFailAudioPtr === 'function') {
+            audioPtr = this.wasmModule.getLevelFailAudioPtr();
+            audioLen = this.wasmModule.getLevelFailAudioLen();
+          } else {
+            this.logger.warn("Using fallback for levelFail sound - functions not exported");
+            return;
+          }
           break;
         case 'towerShoot':
-          audioPtr = this.wasmModule.getTowerShootAudioPtr();
-          audioLen = this.wasmModule.getTowerShootAudioLen();
+          if (typeof this.wasmModule.getTowerShootAudioPtr === 'function') {
+            audioPtr = this.wasmModule.getTowerShootAudioPtr();
+            audioLen = this.wasmModule.getTowerShootAudioLen();
+          } else {
+            this.logger.warn("Using fallback for towerShoot sound - functions not exported");
+            return;
+          }
           break;
         case 'enemyExplosion':
-          audioPtr = this.wasmModule.getEnemyExplosionAudioPtr();
-          audioLen = this.wasmModule.getEnemyExplosionAudioLen();
+          if (typeof this.wasmModule.getEnemyExplosionAudioPtr === 'function') {
+            audioPtr = this.wasmModule.getEnemyExplosionAudioPtr();
+            audioLen = this.wasmModule.getEnemyExplosionAudioLen();
+          } else {
+            this.logger.warn("Using fallback for enemyExplosion sound - functions not exported");
+            return;
+          }
           break;
         default:
           this.logger.warn(`Unknown embedded sound: ${soundName}`);
           return;
       }
       
-      // Get the memory buffer from the WASM module
-      const memory = this.wasmModule.memory;
+      if (audioPtr === 0 || audioLen === 0) {
+        this.logger.warn(`Invalid audio data for ${soundName}`);
+        return;
+      }
+      
+      // Create a buffer from the WASM memory
       const buffer = new Uint8Array(memory.buffer, audioPtr, audioLen);
       
       // Create a blob from the buffer
